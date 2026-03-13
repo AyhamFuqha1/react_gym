@@ -11,9 +11,9 @@ import {
   Shield,
   CheckCircle,
 } from "lucide-react";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { login, saveAuth, type UserRole } from "../services/auth";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { login, saveAuth, type UserRole } from "../../services/auth";
 
 export function Login() {
   const navigate = useNavigate();

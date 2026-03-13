@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, ArrowLeft, CheckCircle2, KeyRound } from "lucide-react";
-import { Logo } from "../components/Logo";
-import { Input } from "../components/Input";
-import { Button } from "../components/Button";
-import { forgotPassword, verifyOtp } from "../services/auth";
+import { Logo } from "../../components/Logo";
+import { Input } from "../../components/Input";
+import { Button } from "../../components/Button";
+import { forgotPassword, verifyOtp } from "../../services/auth";
 
 export function ForgotPassword() {
   const navigate = useNavigate();

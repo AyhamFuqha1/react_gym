@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
-import { Login } from "../pages/Login";
-import { ForgotPassword } from "../pages/ForgotPassword";
-import { ResetPassword } from "../pages/ResetPassword";
+import { Login } from "../pages/login-password/Login";
+import { ForgotPassword } from "../pages/login-password/ForgotPassword";
+import { ResetPassword } from "../pages/login-password/ResetPassword";
+import { WebProfile } from "../pages/web-user/WebProfile";
 
 function DashboardMessage({ title }: { title: string }) {
   return (
@@ -40,7 +41,7 @@ export const router = createBrowserRouter([
     element: <DashboardMessage title="Navigated to Coach Dashboard" />,
   },
   {
-    path: "/dashboard/user",
-    element: <DashboardMessage title="Navigated to User Dashboard" />,
+  path: "/dashboard/user",
+  element: <WebProfile />,
   },
 ]);
