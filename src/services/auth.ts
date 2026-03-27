@@ -57,17 +57,20 @@ export async function resetPassword(
   return response.data;
 }
 
-export function saveAuth(token: string, role: UserRole) {
+export function saveAuth(token: string, role: UserRole, email: string) {
   localStorage.setItem("token", token);
   localStorage.setItem("role", role);
+  localStorage.setItem("email", email);
 }
 
 export function clearAuth() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
+  localStorage.removeItem("email");
+  sessionStorage.removeItem("profile_id");
   sessionStorage.removeItem("reset_token");
   sessionStorage.removeItem("reset_email");
-}
+} 
 
 export function getRole() {
   return localStorage.getItem("role") as UserRole | null;
@@ -75,4 +78,8 @@ export function getRole() {
 
 export function getToken() {
   return localStorage.getItem("token");
+}
+
+export function getEmail() {
+  return localStorage.getItem("email");
 }

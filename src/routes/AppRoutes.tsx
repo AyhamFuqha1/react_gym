@@ -1,8 +1,28 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Login } from "../pages/login-password/Login";
 import { ForgotPassword } from "../pages/login-password/ForgotPassword";
 import { ResetPassword } from "../pages/login-password/ResetPassword";
 import { WebProfile } from "../pages/web-user/WebProfile";
+import { AdminLayout } from "../layouts/AdminLayout";
+import { MembersManagement } from "../pages/web-admin/MembersManagement";
+import { ContentManagement } from "../pages/web-admin/ContentManagement";
+import { InjuryPrevention } from "../pages/web-admin/InjuryPrevention";
+import { AdminFeedback } from "../pages/web-admin/AdminFeedback";
+import { NewsManagement } from "../pages/web-admin/NewsManagement";
+import { ExercisesPage } from "../pages/web-admin/ExercisesPage";
+
+function AdminHome() {
+  return (
+      <div>
+        <h1 className="text-3xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
+          Admin Dashboard
+        </h1>
+        <p className="text-gray-500 mt-2">
+          Welcome to the FitMind admin portal.
+        </p>
+      </div>
+  );
+}
 
 function DashboardMessage({ title }: { title: string }) {
   return (
@@ -29,9 +49,39 @@ export const router = createBrowserRouter([
     Component: ResetPassword,
   },
   {
-    path: "/dashboard/admin",
-    element: <DashboardMessage title="Navigated to Admin Dashboard" />,
-  },
+  path: "/dashboard/admin",
+  element: <AdminLayout />,
+  children: [
+    {
+      index: true,
+      element: <AdminHome />,
+    },
+    {
+      path: "members",
+      element: <MembersManagement />,
+    },
+    {
+      path: "content",
+      element: <ContentManagement />,
+    },
+    {
+      path: "exercises/:categoryId",
+      element: <ExercisesPage />,
+    },
+    {
+      path: "injury-prevention",
+      element: <InjuryPrevention />,
+    },
+    {
+      path: "feedback",
+      element: <AdminFeedback />,
+    },
+    {
+      path: "news",
+      element: <NewsManagement />,
+    },
+  ],
+},
   {
     path: "/dashboard/manager",
     element: <DashboardMessage title="Navigated to Manager Dashboard" />,
@@ -41,7 +91,11 @@ export const router = createBrowserRouter([
     element: <DashboardMessage title="Navigated to Coach Dashboard" />,
   },
   {
-  path: "/dashboard/user",
-  element: <WebProfile />,
+    path: "/dashboard/user",
+    element: <WebProfile />,
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
   },
 ]);
