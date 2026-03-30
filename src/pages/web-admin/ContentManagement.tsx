@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router";
+import axios from "axios";
 import {
   Dumbbell,
   Plus,
@@ -10,6 +10,7 @@ import {
   X,
   ChevronRight,
   Layers3,
+  ChevronsUp,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -23,6 +24,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
   createGeneralExercise,
   deleteGeneralExercise,
   getGeneralExerciseById,
@@ -34,11 +42,13 @@ import {
 type FormState = {
   name: string;
   description: string;
+  categoryType: string;
 };
 
 const initialForm: FormState = {
   name: "",
   description: "",
+  categoryType: "",
 };
 
 const FIXED_MUSCLE_GROUP = "General";
@@ -68,6 +78,19 @@ const cardStyles = [
     gradient: "from-indigo-500 to-purple-500",
     borderColor: "border-indigo-500/20",
   },
+];
+
+const categoryOptions = [
+  { value: "chest", label: "Chest", icon: "💪" },
+  { value: "back", label: "Back", icon: "🏋️" },
+  { value: "shoulders", label: "Shoulders", icon: "🔷" },
+  { value: "arms", label: "Arms", icon: "💪" },
+  { value: "legs", label: "Legs", icon: "🦵" },
+  { value: "core", label: "Core", icon: "🔥" },
+  { value: "full_body", label: "Full Body", icon: "⚡" },
+  { value: "glutes", label: "Glutes", icon: "🍑" },
+  { value: "cardio", label: "Cardio", icon: "❤️" },
+  { value: "mobility", label: "Mobility", icon: "🌀" },
 ];
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -108,10 +131,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 function getCategoryIcon(name: string) {
   const normalized = name.trim().toLowerCase();
 
-  if (
-    normalized.includes("chest") ||
-    normalized.includes("pec")
-  ) {
+  if (normalized.includes("chest") || normalized.includes("pec")) {
     return "💪";
   }
 
@@ -133,8 +153,6 @@ function getCategoryIcon(name: string) {
     normalized.includes("quad") ||
     normalized.includes("quads") ||
     normalized.includes("hamstring") ||
-    normalized.includes("glute") ||
-    normalized.includes("glutes") ||
     normalized.includes("calf") ||
     normalized.includes("calves")
   ) {
@@ -147,7 +165,7 @@ function getCategoryIcon(name: string) {
     normalized.includes("delt") ||
     normalized.includes("deltoid")
   ) {
-    return "💪";
+    return "🔷";
   }
 
   if (
@@ -176,7 +194,83 @@ function getCategoryIcon(name: string) {
     return "⚡";
   }
 
+  if (normalized.includes("glute")) {
+    return "🍑";
+  }
+
+  if (normalized.includes("cardio")) {
+    return "❤️";
+  }
+
+  if (normalized.includes("mobility")) {
+    return "🌀";
+  }
+
   return "🏋️";
+}
+
+function getCategoryTypeFromName(name: string) {
+  const normalized = name.trim().toLowerCase();
+
+  if (normalized.includes("chest") || normalized.includes("pec")) return "chest";
+  if (normalized.includes("back") || normalized.includes("lat") || normalized.includes("row")) return "back";
+  if (normalized.includes("shoulder") || normalized.includes("delt")) return "shoulders";
+  if (
+    normalized.includes("arm") ||
+    normalized.includes("bicep") ||
+    normalized.includes("tricep") ||
+    normalized.includes("forearm")
+  ) {
+    return "arms";
+  }
+  if (
+    normalized.includes("leg") ||
+    normalized.includes("quad") ||
+    normalized.includes("hamstring") ||
+    normalized.includes("calf")
+  ) {
+    return "legs";
+  }
+  if (
+    normalized.includes("core") ||
+    normalized.includes("abs") ||
+    normalized.includes("abdominal")
+  ) {
+    return "core";
+  }
+  if (normalized.includes("full body")) return "full_body";
+  if (normalized.includes("glute")) return "glutes";
+  if (normalized.includes("cardio")) return "cardio";
+  if (normalized.includes("mobility")) return "mobility";
+
+  return "";
+}
+
+function getDefaultDescription(type: string) {
+  switch (type) {
+    case "chest":
+      return "Chest exercises category";
+    case "back":
+      return "Back exercises category";
+    case "shoulders":
+      return "Shoulders exercises category";
+    case "arms":
+      return "Arms exercises category";
+    case "legs":
+      return "Legs exercises category";
+    case "core":
+      return "Core exercises category";
+    case "full_body":
+      return "Full body exercises category";
+    case "glutes":
+      return "Glutes exercises category";
+    case "cardio":
+      return "Cardio exercises category";
+    case "mobility":
+      return "Mobility exercises category";
+    default:
+      return "";
+  }
 }
 
 export function ContentManagement() {
@@ -238,6 +332,7 @@ export function ContentManagement() {
       setForm({
         name: item.name ?? "",
         description: item.description ?? "",
+        categoryType: getCategoryTypeFromName(item.name ?? ""),
       });
 
       setIsDialogOpen(true);
@@ -468,6 +563,40 @@ export function ContentManagement() {
           </DialogHeader>
 
           <div className="space-y-5 mt-4">
+            <div>
+              <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                Category Type
+              </Label>
+              <Select
+                value={form.categoryType}
+                onValueChange={(value) => {
+                  const option = categoryOptions.find((item) => item.value === value);
+
+                  setForm((prev) => ({
+                    ...prev,
+                    categoryType: value,
+                    name: option?.label || prev.name,
+                    description:
+                      prev.description.trim() === "" ||
+                      prev.description === getDefaultDescription(prev.categoryType)
+                        ? getDefaultDescription(value)
+                        : prev.description,
+                  }));
+                }}
+              >
+                <SelectTrigger className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
+                  <SelectValue placeholder="Choose category type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.icon} {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label className="text-gray-300 text-sm font-medium mb-2 block">
                 Name

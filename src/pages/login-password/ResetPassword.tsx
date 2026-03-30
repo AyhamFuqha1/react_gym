@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { Logo } from "../../components/Logo";
@@ -27,8 +27,32 @@ export function ResetPassword() {
     }
   }, [navigate]);
 
+  const passwordChecks = useMemo(() => {
+    const password = formData.password;
+
+    return {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+    };
+  }, [formData.password]);
+
+  const isPasswordValid =
+    passwordChecks.minLength &&
+    passwordChecks.hasUppercase &&
+    passwordChecks.hasLowercase &&
+    passwordChecks.hasNumber;
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!isPasswordValid) {
+      setError(
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number."
+      );
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
@@ -91,6 +115,8 @@ export function ResetPassword() {
     );
   }
 
+  const showPasswordValidation = formData.password.length > 0;
+
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="w-full max-w-md">
@@ -116,9 +142,10 @@ export function ResetPassword() {
                 placeholder="Enter new password"
                 className="pl-12 pr-12"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (error) setError("");
+                }}
                 required
               />
               <button
@@ -142,9 +169,13 @@ export function ResetPassword() {
                 placeholder="Re-enter new password"
                 className="pl-12 pr-12"
                 value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({
+                    ...formData,
+                    confirmPassword: e.target.value,
+                  });
+                  if (error) setError("");
+                }}
                 required
               />
               <button
@@ -170,10 +201,52 @@ export function ResetPassword() {
               <p className="text-sm text-muted-foreground font-medium mb-2">
                 Password requirements:
               </p>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>At least 8 characters long</li>
-                <li>Include uppercase and lowercase letters</li>
-                <li>Include at least one number</li>
+
+              <ul className="text-xs space-y-1 list-disc list-inside">
+                <li
+                  className={
+                    showPasswordValidation
+                      ? passwordChecks.minLength
+                        ? "text-green-600"
+                        : "text-red-500"
+                      : "text-muted-foreground"
+                  }
+                >
+                  At least 8 characters long
+                </li>
+                <li
+                  className={
+                    showPasswordValidation
+                      ? passwordChecks.hasUppercase
+                        ? "text-green-600"
+                        : "text-red-500"
+                      : "text-muted-foreground"
+                  }
+                >
+                  Include at least one uppercase letter
+                </li>
+                <li
+                  className={
+                    showPasswordValidation
+                      ? passwordChecks.hasLowercase
+                        ? "text-green-600"
+                        : "text-red-500"
+                      : "text-muted-foreground"
+                  }
+                >
+                  Include at least one lowercase letter
+                </li>
+                <li
+                  className={
+                    showPasswordValidation
+                      ? passwordChecks.hasNumber
+                        ? "text-green-600"
+                        : "text-red-500"
+                      : "text-muted-foreground"
+                  }
+                >
+                  Include at least one number
+                </li>
               </ul>
             </div>
 

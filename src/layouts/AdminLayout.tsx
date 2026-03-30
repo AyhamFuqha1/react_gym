@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  Brain,
   Shield,
   MessageSquare,
   Newspaper,
@@ -11,6 +10,7 @@ import {
   LogOut,
   Dumbbell,
   ChevronRight,
+  Apple,
 } from "lucide-react";
 import { clearAuth, getEmail, getRole } from "../services/auth";
 
@@ -36,7 +36,7 @@ export function AdminLayout() {
     { path: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/dashboard/admin/members", icon: Users, label: "Members" },
     { path: "/dashboard/admin/content", icon: BookOpen, label: "Content" },
-    { path: "/dashboard/admin/ai-analytics", icon: Brain, label: "AI Analytics" },
+    { path: "/dashboard/admin/nutrition", icon: Apple, label: "Nutrition Library" },
     {
       path: "/dashboard/admin/injury-prevention",
       icon: Shield,

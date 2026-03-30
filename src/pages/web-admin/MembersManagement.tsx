@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, Eye, Loader2, ChevronDown, ArrowUpDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -21,7 +22,6 @@ import {
 import { Label } from "../../components/ui/label";
 import {
   createMember,
-  getMemberById,
   getMembers,
   type MemberItem,
   type MembersStats,
@@ -58,6 +58,8 @@ function formatDate(date: string | null) {
 }
 
 export function MembersManagement() {
+  const navigate = useNavigate();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [stats, setStats] = useState<MembersStats>(emptyStats);
@@ -65,9 +67,6 @@ export function MembersManagement() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [reloadFlag, setReloadFlag] = useState(0);
-
-  const [selectedMember, setSelectedMember] = useState<any>(null);
-  const [selectedMemberLoading, setSelectedMemberLoading] = useState(false);
 
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -100,11 +99,9 @@ export function MembersManagement() {
   const filteredMembers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    const result = members
+    return members
       .filter((member) => {
-        const matchesSearch = member.user_name
-          .toLowerCase()
-          .includes(normalizedSearch);
+        const matchesSearch = member.user_name.toLowerCase().includes(normalizedSearch);
 
         const normalizedStatus = (member.status || "").toLowerCase();
 
@@ -130,8 +127,6 @@ export function MembersManagement() {
             return a.user_name.localeCompare(b.user_name);
         }
       });
-
-    return result;
   }, [members, searchTerm, statusFilter, sortBy]);
 
   const handleCreateMember = async () => {
@@ -159,18 +154,8 @@ export function MembersManagement() {
     }
   };
 
-  const handleViewMember = async (id: number) => {
-    try {
-      setSelectedMemberLoading(true);
-      const data = await getMemberById(id);
-
-      const memberData = Array.isArray(data) ? data[0] : data;
-      setSelectedMember(memberData || null);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load member details");
-    } finally {
-      setSelectedMemberLoading(false);
-    }
+  const openMemberDetails = (id: number) => {
+    navigate(`/dashboard/admin/members/${id}`);
   };
 
   return (
@@ -377,7 +362,8 @@ export function MembersManagement() {
               {filteredMembers.map((member, i) => (
                 <TableRow
                   key={member.id}
-                  className="hover:bg-gray-50/60 transition-colors border-gray-50"
+                  onClick={() => openMemberDetails(member.id)}
+                  className="hover:bg-gray-50/60 transition-colors border-gray-50 cursor-pointer"
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -425,7 +411,10 @@ export function MembersManagement() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <button
-                        onClick={() => handleViewMember(member.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openMemberDetails(member.id);
+                        }}
                         className="w-8 h-8 rounded-lg bg-[#E6F4F1] text-[#0D7D6D] hover:bg-[#0D7D6D] hover:text-white flex items-center justify-center transition-all"
                       >
                         <Eye size={14} />
@@ -438,64 +427,6 @@ export function MembersManagement() {
           </Table>
         </div>
       </div>
-
-      <Dialog
-        open={!!selectedMember || selectedMemberLoading}
-        onOpenChange={() => setSelectedMember(null)}
-      >
-        <DialogContent className="max-w-lg rounded-2xl border-gray-100">
-          <DialogHeader>
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-              Member Details
-            </DialogTitle>
-            <DialogDescription>
-              Details loaded from GET /members/:id
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedMemberLoading ? (
-            <div className="py-10 flex items-center justify-center text-gray-400">
-              <Loader2 size={18} className="animate-spin mr-2" />
-              Loading member details...
-            </div>
-          ) : null}
-
-          {selectedMember && !selectedMemberLoading ? (
-            <div className="space-y-4 mt-2">
-              <div className="flex items-center gap-4 p-4 bg-[#E6F4F1] rounded-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0D7D6D] to-[#14B8A6] flex items-center justify-center text-white text-lg font-700">
-                  {getInitials(selectedMember.name || selectedMember.user_name || "M")}
-                </div>
-
-                <div>
-                  <p className="font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 text-lg">
-                    {selectedMember.name || selectedMember.user_name || "Unknown Member"}
-                  </p>
-                  <p className="text-[#0D7D6D] text-sm">
-                    {selectedMember.email || "No email returned"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "ID", value: selectedMember.id },
-                  { label: "Role ID", value: selectedMember.role_id },
-                  { label: "Created At", value: selectedMember.created_at || "N/A" },
-                  { label: "Updated At", value: selectedMember.updated_at || "N/A" },
-                ].map((item, i) => (
-                  <div key={i} className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-400 mb-1">{item.label}</p>
-                    <p className="font-semibold text-gray-800 text-sm break-words">
-                      {String(item.value ?? "N/A")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
