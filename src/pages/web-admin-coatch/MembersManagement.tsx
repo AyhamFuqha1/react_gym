@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Plus, Eye, Loader2, ChevronDown, ArrowUpDown } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Search,
+  Plus,
+  Eye,
+  Loader2,
+  ChevronDown,
+  ArrowUpDown,
+} from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -20,6 +27,7 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
+import { getRole } from "../../services/auth";
 import {
   createMember,
   getMembers,
@@ -59,6 +67,15 @@ function formatDate(date: string | null) {
 
 export function MembersManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const role = getRole();
+  const isCoach = role === "coach";
+  const canAddMember = role === "admin" || role === "manager";
+
+  const dashboardBase = location.pathname.startsWith("/dashboard/coach")
+    ? "/dashboard/coach"
+    : "/dashboard/admin";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [members, setMembers] = useState<MemberItem[]>([]);
@@ -101,7 +118,9 @@ export function MembersManagement() {
 
     return members
       .filter((member) => {
-        const matchesSearch = member.user_name.toLowerCase().includes(normalizedSearch);
+        const matchesSearch = member.user_name
+          .toLowerCase()
+          .includes(normalizedSearch);
 
         const normalizedStatus = (member.status || "").toLowerCase();
 
@@ -130,6 +149,10 @@ export function MembersManagement() {
   }, [members, searchTerm, statusFilter, sortBy]);
 
   const handleCreateMember = async () => {
+    if (!canAddMember) {
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
@@ -155,7 +178,7 @@ export function MembersManagement() {
   };
 
   const openMemberDetails = (id: number) => {
-    navigate(`/dashboard/admin/members/${id}`);
+    navigate(`${dashboardBase}/members/${id}`);
   };
 
   return (
@@ -166,64 +189,68 @@ export function MembersManagement() {
             Members Management
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Manage all gym members and their progress
+            {isCoach
+              ? "View gym members and their progress"
+              : "Manage all gym members and their progress"}
           </p>
         </div>
 
-        <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] hover:shadow-lg hover:shadow-[#0D7D6D]/25 text-white rounded-xl border-0 h-11 px-5">
-              <Plus className="mr-2" size={18} />
-              Add Member
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="max-w-md rounded-2xl border-gray-100">
-            <DialogHeader>
-              <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-                Add New Member
-              </DialogTitle>
-              <DialogDescription>
-                Create a new member account using the current backend API
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 mt-2">
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-sm">Full Name</Label>
-                <Input
-                  placeholder="John Doe"
-                  className="rounded-xl border-gray-200 bg-gray-50"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-gray-600 text-sm">Email</Label>
-                <Input
-                  type="email"
-                  placeholder="john@example.com"
-                  className="rounded-xl border-gray-200 bg-gray-50"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, email: e.target.value }))
-                  }
-                />
-              </div>
-
-              <Button
-                onClick={handleCreateMember}
-                disabled={submitting || !formData.name || !formData.email}
-                className="w-full bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md hover:shadow-[#0D7D6D]/20"
-              >
-                {submitting ? "Creating..." : "Create Member"}
+        {canAddMember && (
+          <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] hover:shadow-lg hover:shadow-[#0D7D6D]/25 text-white rounded-xl border-0 h-11 px-5">
+                <Plus className="mr-2" size={18} />
+                Add Member
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-md rounded-2xl border-gray-100">
+              <DialogHeader>
+                <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
+                  Add New Member
+                </DialogTitle>
+                <DialogDescription>
+                  Create a new member account using the current backend API
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-gray-600 text-sm">Full Name</Label>
+                  <Input
+                    placeholder="John Doe"
+                    className="rounded-xl border-gray-200 bg-gray-50"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-gray-600 text-sm">Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="john@example.com"
+                    className="rounded-xl border-gray-200 bg-gray-50"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <Button
+                  onClick={handleCreateMember}
+                  disabled={submitting || !formData.name || !formData.email}
+                  className="w-full bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md hover:shadow-[#0D7D6D]/20"
+                >
+                  {submitting ? "Creating..." : "Create Member"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {error ? (

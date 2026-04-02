@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Plus,
@@ -56,43 +56,49 @@ const initialForm: FormState = {
 };
 
 const difficultyColors: Record<string, string> = {
-  beginner: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  easy: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  intermediate: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  medium: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  advanced: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-  hard: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+  beginner: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  easy: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  intermediate: "bg-blue-50 text-blue-600 border-blue-200",
+  medium: "bg-blue-50 text-blue-600 border-blue-200",
+  advanced: "bg-rose-50 text-rose-600 border-rose-200",
+  hard: "bg-rose-50 text-rose-600 border-rose-200",
 };
 
 const categoryCardStyles = [
   {
     gradient: "from-blue-500 to-cyan-500",
-    borderColor: "border-blue-500/20",
+    borderColor: "border-blue-100",
+    bgSoft: "bg-blue-50",
     icon: "💪",
   },
   {
     gradient: "from-purple-500 to-pink-500",
-    borderColor: "border-purple-500/20",
+    borderColor: "border-purple-100",
+    bgSoft: "bg-purple-50",
     icon: "🏋️",
   },
   {
     gradient: "from-amber-500 to-orange-500",
-    borderColor: "border-amber-500/20",
+    borderColor: "border-amber-100",
+    bgSoft: "bg-amber-50",
     icon: "🦵",
   },
   {
     gradient: "from-emerald-500 to-teal-500",
-    borderColor: "border-emerald-500/20",
+    borderColor: "border-emerald-100",
+    bgSoft: "bg-emerald-50",
     icon: "💪",
   },
   {
     gradient: "from-rose-500 to-red-500",
-    borderColor: "border-rose-500/20",
+    borderColor: "border-rose-100",
+    bgSoft: "bg-rose-50",
     icon: "💪",
   },
   {
     gradient: "from-indigo-500 to-purple-500",
-    borderColor: "border-indigo-500/20",
+    borderColor: "border-indigo-100",
+    bgSoft: "bg-indigo-50",
     icon: "🔥",
   },
 ];
@@ -194,6 +200,11 @@ function normalizeDifficulty(value: string) {
 export function ExercisesPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const dashboardBase = location.pathname.startsWith("/dashboard/coach")
+    ? "/dashboard/coach"
+    : "/dashboard/admin";
 
   const numericCategoryId = Number(categoryId);
 
@@ -359,215 +370,211 @@ export function ExercisesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -m-8 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard/admin/content")}
-            className="text-gray-400 hover:text-white hover:bg-white/5 mb-4 -ml-2"
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-4">
+          <div
+            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${categoryStyle.gradient} flex items-center justify-center text-3xl shadow-sm`}
           >
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back to Categories
-          </Button>
+            {categoryStyle.icon}
+          </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${categoryStyle.gradient} flex items-center justify-center text-4xl shadow-xl`}
-              >
-                {categoryStyle.icon}
-              </div>
-
-              <div>
-                <h1 className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-2">
-                  {categoryName || "Exercises"}
-                </h1>
-                <p className="text-gray-400 text-lg">
-                  {loading
-                    ? "Loading exercises..."
-                    : `${filteredExercises.length} exercises in this category`}
-                </p>
-                {categoryDescription ? (
-                  <p className="text-gray-500 text-sm mt-1">{categoryDescription}</p>
-                ) : null}
-              </div>
-            </div>
-
+          <div>
             <Button
-              onClick={handleOpenCreate}
-              className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 h-12 px-6 text-base"
+              variant="ghost"
+              onClick={() => navigate(`${dashboardBase}/content`)}
+              className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 mb-2 -ml-3"
             >
-              <Plus className="mr-2" size={20} />
-              Add Exercise
+              <ArrowLeft className="mr-2 w-4 h-4" />
+              Back to Categories
             </Button>
-          </div>
-        </div>
 
-        <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Search exercises..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
-              />
-            </div>
-
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10 pointer-events-none" />
-              <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                <SelectTrigger className="pl-12 h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
-                  <SelectValue placeholder="All Difficulties" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Difficulties</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-12 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
-          </div>
-        ) : filteredExercises.length === 0 ? (
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-12 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-gray-900/50 border border-gray-700 flex items-center justify-center mx-auto mb-4">
-              <Search className="w-10 h-10 text-gray-600" />
-            </div>
-            <h3 className="text-2xl text-white font-semibold mb-2">
-              No exercises found
-            </h3>
-            <p className="text-gray-400 mb-6">
-              {exercises.length === 0
-                ? "This category does not have any exercises yet."
-                : "Try adjusting your search or filter."}
+            <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
+              {categoryName || "Exercises"}
+            </h1>
+            <p className="text-gray-500 text-sm">
+              {loading
+                ? "Loading exercises..."
+                : `${filteredExercises.length} exercises in this category`}
             </p>
-            {exercises.length === 0 ? (
-              <Button
-                onClick={handleOpenCreate}
-                className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0"
-              >
-                <Plus className="mr-2" size={18} />
-                Add Exercise
-              </Button>
+            {categoryDescription ? (
+              <p className="text-gray-500 text-sm mt-1">{categoryDescription}</p>
             ) : null}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredExercises.map((exercise) => {
-              const normalizedDifficulty = normalizeDifficulty(
-                exercise.difficulty_level ?? ""
-              );
+        </div>
 
-              const difficultyClass =
-                difficultyColors[normalizedDifficulty] ??
-                "bg-gray-500/20 text-gray-300 border-gray-500/30";
+        <Button
+          onClick={handleOpenCreate}
+          className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
+        >
+          <Plus className="mr-2" size={18} />
+          Add Exercise
+        </Button>
+      </div>
 
-              const hasVideo = Boolean(exercise.video_url);
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              placeholder="Search exercises..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
+            />
+          </div>
 
-              return (
-                <div
-                  key={exercise.id}
-                  className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 hover:scale-[1.02] hover:shadow-2xl hover:border-gray-600/50 transition-all duration-300 group"
-                >
-                  <div className="relative mb-5">
-                    <div
-                      className={`w-full aspect-video rounded-xl bg-gradient-to-br ${categoryStyle.gradient} flex items-center justify-center text-white mb-4 group-hover:scale-[1.02] transition-transform`}
-                    >
-                      <Dumbbell className="w-14 h-14" />
-                    </div>
+          <div className="relative">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10 pointer-events-none" />
+            <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+              <SelectTrigger className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
+                <SelectValue placeholder="All Difficulties" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Difficulties</SelectItem>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
 
-                    {hasVideo ? (
-                      <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5">
-                        <Play className="w-3 h-3 text-white fill-white" />
-                        <span className="text-white text-xs font-medium">Video</span>
-                      </div>
-                    ) : null}
+      {loading ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
+          <Loader2 className="w-8 h-8 text-[#14B8A6] animate-spin" />
+        </div>
+      ) : filteredExercises.length === 0 ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center shadow-sm">
+          <div className="w-20 h-20 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center mx-auto mb-4">
+            <Search className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-2xl text-gray-900 font-semibold mb-2">
+            No exercises found
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {exercises.length === 0
+              ? "This category does not have any exercises yet."
+              : "Try adjusting your search or filter."}
+          </p>
+          {exercises.length === 0 ? (
+            <Button
+              onClick={handleOpenCreate}
+              className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0"
+            >
+              <Plus className="mr-2" size={18} />
+              Add Exercise
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredExercises.map((exercise) => {
+            const normalizedDifficulty = normalizeDifficulty(
+              exercise.difficulty_level ?? ""
+            );
 
-                    <div
-                      className={`absolute bottom-3 left-3 px-3 py-1.5 rounded-lg border ${difficultyClass} backdrop-blur-sm`}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        {normalizedDifficulty}
-                      </span>
-                    </div>
+            const difficultyClass =
+              difficultyColors[normalizedDifficulty] ??
+              "bg-gray-50 text-gray-600 border-gray-200";
+
+            const hasVideo = Boolean(exercise.video_url);
+
+            return (
+              <div
+                key={exercise.id}
+                className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                <div className="relative mb-5">
+                  <div
+                    className={`w-full aspect-video rounded-xl bg-gradient-to-br ${categoryStyle.gradient} flex items-center justify-center text-white mb-4`}
+                  >
+                    <Dumbbell className="w-14 h-14" />
                   </div>
 
-                  <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-3">
-                    {exercise.name}
-                  </h3>
-
-                  <div className="space-y-3 mb-5">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                        Instructions
-                      </p>
-                      <p className="text-sm text-gray-300 line-clamp-3">
-                        {exercise.instructions || "No instructions provided."}
-                      </p>
+                  {hasVideo ? (
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5 border border-gray-200 shadow-sm">
+                      <Play className="w-3 h-3 text-gray-700 fill-gray-700" />
+                      <span className="text-gray-700 text-xs font-medium">Video</span>
                     </div>
+                  ) : null}
 
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                        Common Mistakes
-                      </p>
-                      <p className="text-sm text-gray-400 line-clamp-2">
-                        {exercise.common_mistakes || "No common mistakes provided."}
-                      </p>
-                    </div>
-
-                    {exercise.video_url ? (
-                      <div>
-                        <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                          Video URL
-                        </p>
-                        <a
-                          href={exercise.video_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-cyan-400 hover:text-cyan-300 break-all"
-                        >
-                          {exercise.video_url}
-                        </a>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleOpenEdit(exercise.id)}
-                      className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 h-10"
-                    >
-                      <Pencil className="mr-2 w-4 h-4" />
-                      Edit
-                    </Button>
-
-                    <Button
-                      onClick={() => handleDelete(exercise.id)}
-                      disabled={deletingId === exercise.id}
-                      className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 h-10 px-4"
-                    >
-                      {deletingId === exercise.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
+                  <div
+                    className={`absolute bottom-3 left-3 px-3 py-1.5 rounded-lg border ${difficultyClass}`}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      {normalizedDifficulty}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+                <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-3">
+                  {exercise.name}
+                </h3>
+
+                <div className="space-y-3 mb-5">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                      Instructions
+                    </p>
+                    <p className="text-sm text-gray-600 line-clamp-3">
+                      {exercise.instructions || "No instructions provided."}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                      Common Mistakes
+                    </p>
+                    <p className="text-sm text-gray-500 line-clamp-2">
+                      {exercise.common_mistakes || "No common mistakes provided."}
+                    </p>
+                  </div>
+
+                  {exercise.video_url ? (
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                        Video URL
+                      </p>
+                      <a
+                        href={exercise.video_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-cyan-600 hover:text-cyan-700 break-all"
+                      >
+                        {exercise.video_url}
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleOpenEdit(exercise.id)}
+                    className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-10"
+                  >
+                    <Pencil className="mr-2 w-4 h-4" />
+                    Edit
+                  </Button>
+
+                  <Button
+                    onClick={() => handleDelete(exercise.id)}
+                    disabled={deletingId === exercise.id}
+                    className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl h-10 px-4"
+                  >
+                    {deletingId === exercise.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog
         open={isDialogOpen}
@@ -576,12 +583,12 @@ export function ExercisesPage() {
           if (!open && !submitting) resetForm();
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700 text-white rounded-2xl p-0">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl p-0">
           <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-white">
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
               {editingExerciseId !== null ? "Edit Exercise" : "Add New Exercise"}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-500">
               {editingExerciseId !== null
                 ? "Update exercise details"
                 : "Create a new exercise for this category"}
@@ -591,7 +598,7 @@ export function ExercisesPage() {
           <div className="px-6 pb-6 overflow-y-auto max-h-[calc(90vh-110px)]">
             <div className="space-y-5 mt-4">
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Exercise Name
                 </Label>
                 <Input
@@ -600,24 +607,24 @@ export function ExercisesPage() {
                     setForm((prev) => ({ ...prev, name: e.target.value }))
                   }
                   placeholder="e.g. Barbell Bench Press"
-                  className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                  <Label className="text-gray-700 text-sm font-medium mb-2 block">
                     Category
                   </Label>
                   <Input
                     value={categoryName}
                     disabled
-                    className="h-12 bg-gray-900/30 border-gray-700 text-gray-400 rounded-xl"
+                    className="h-11 bg-gray-100 border-gray-200 text-gray-500 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                  <Label className="text-gray-700 text-sm font-medium mb-2 block">
                     Difficulty
                   </Label>
                   <Select
@@ -626,7 +633,7 @@ export function ExercisesPage() {
                       setForm((prev) => ({ ...prev, difficulty_level: value }))
                     }
                   >
-                    <SelectTrigger className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
+                    <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -639,7 +646,7 @@ export function ExercisesPage() {
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Video URL
                 </Label>
                 <Input
@@ -648,12 +655,12 @@ export function ExercisesPage() {
                     setForm((prev) => ({ ...prev, video_url: e.target.value }))
                   }
                   placeholder="https://example.com/video"
-                  className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Instructions
                 </Label>
                 <Textarea
@@ -663,12 +670,12 @@ export function ExercisesPage() {
                   }
                   placeholder="Describe proper form and technique..."
                   rows={4}
-                  className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl resize-none"
+                  className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Common Mistakes
                 </Label>
                 <Textarea
@@ -681,11 +688,11 @@ export function ExercisesPage() {
                   }
                   placeholder="List common mistakes to avoid..."
                   rows={3}
-                  className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl resize-none"
+                  className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4 sticky bottom-0 bg-gray-800 pb-1">
+              <div className="flex gap-3 pt-4 sticky bottom-0 bg-white pb-1">
                 <Button
                   onClick={() => {
                     if (!submitting) {
@@ -694,7 +701,7 @@ export function ExercisesPage() {
                     }
                   }}
                   variant="outline"
-                  className="flex-1 h-12 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-700 rounded-xl"
+                  className="flex-1 h-11 rounded-xl"
                 >
                   Cancel
                 </Button>
@@ -702,7 +709,7 @@ export function ExercisesPage() {
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="flex-1 h-12 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 rounded-xl"
+                  className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
                 >
                   {submitting ? (
                     <>

@@ -40,7 +40,13 @@ export function Login() {
 
     try {
       const data = await login(formData.email, formData.password);
-      saveAuth(data.token, data.role, formData.email);
+      saveAuth(
+      data.token,
+      data.role,
+      data.email ?? formData.email,
+      data.user_id,
+      data.user_name
+    );
       goToRoleDashboard(data.role);
     } catch (error: any) {
       setError(

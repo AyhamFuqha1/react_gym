@@ -24,7 +24,7 @@ import {
 import {
   getAdminDashboard,
   type DashboardResponse,
-} from "../../services/dashboard";
+} from "../../../services/dashboard";
 
 function formatCurrency(value: number) {
   if (value >= 1000) {

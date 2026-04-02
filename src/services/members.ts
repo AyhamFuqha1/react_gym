@@ -88,6 +88,98 @@ export interface RenewMemberSubscriptionPayload {
   start_date: string;
 }
 
+export type MemberDisplaySubscriptionStatus =
+  | "active"
+  | "frozen"
+  | "expired"
+  | "inactive"
+  | "unknown";
+
+function normalizeDateOnly(date: Date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+function parseDateOnly(value: string | null | undefined): Date | null {
+  if (!value) return null;
+
+  const parts = value.split("-");
+  if (parts.length !== 3) return null;
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day)
+  ) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+export function getLocalDateString(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+export function getSubscriptionRemainingDays(
+  endDate: string | null | undefined
+): number {
+  if (!endDate) return 0;
+
+  const end = parseDateOnly(endDate);
+  if (!end) return 0;
+
+  const today = normalizeDateOnly(new Date());
+  const normalizedEnd = normalizeDateOnly(end);
+
+  const diffDays =
+    (normalizedEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (diffDays <= 0) return 0;
+
+  return Math.floor(diffDays);
+}
+
+export function isSubscriptionExpired(
+  endDate: string | null | undefined
+): boolean {
+  if (!endDate) return false;
+
+  const end = parseDateOnly(endDate);
+  if (!end) return false;
+
+  const today = normalizeDateOnly(new Date());
+  const normalizedEnd = normalizeDateOnly(end);
+
+  return normalizedEnd.getTime() <= today.getTime();
+}
+
+export function getDisplaySubscriptionStatus(
+  status: string | null | undefined,
+  endDate: string | null | undefined
+): MemberDisplaySubscriptionStatus {
+  const normalizedStatus = (status || "unknown").trim().toLowerCase();
+
+  if (normalizedStatus === "frozen") return "frozen";
+
+  if (isSubscriptionExpired(endDate)) return "expired";
+
+  if (normalizedStatus === "active") return "active";
+  if (normalizedStatus === "inactive") return "inactive";
+  if (normalizedStatus === "expired") return "expired";
+
+  return "unknown";
+}
+
 export async function getMembers() {
   const response = await api.get<MembersResponse>("/members");
   return response.data;
@@ -104,21 +196,29 @@ export async function getMemberById(id: number) {
 }
 
 export async function getMemberOverview(id: number) {
-  const response = await api.get<MemberOverviewResponse>(`/members/overView/${id}`);
+  const response = await api.get<MemberOverviewResponse>(
+    `/members/overView/${id}`
+  );
   return response.data;
 }
 
 export async function getMemberNutrition(id: number) {
-  const response = await api.get<MemberNutritionResponse>(`/members/nutrition/${id}`);
+  const response = await api.get<MemberNutritionResponse>(
+    `/members/nutrition/${id}`
+  );
   return response.data;
 }
 
 export async function getPlanOptions() {
-  const response = await api.get<{ success: boolean; data: PlanOption[] }>("/plans");
+  const response = await api.get<{ success: boolean; data: PlanOption[] }>(
+    "/plans"
+  );
   return response.data?.data || [];
 }
 
-export async function renewMemberSubscription(payload: RenewMemberSubscriptionPayload) {
+export async function renewMemberSubscription(
+  payload: RenewMemberSubscriptionPayload
+) {
   const response = await api.post("/members/ReNewSubscription", payload);
   return response.data;
 }

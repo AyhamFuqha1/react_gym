@@ -64,7 +64,7 @@ export interface CreateInjuryResponse {
     user_id: string | number;
     injury_type: string;
     severity: "low" | "medium" | "high";
-    notes: string;
+    notes: string | null;
     status: "active" | "inactive";
   };
 }
@@ -121,6 +121,8 @@ export async function updateInjury(id: number, payload: UpdateInjuryPayload) {
 }
 
 export async function deleteInjury(id: number) {
-  const response = await api.delete<DeleteInjuryResponse>(`/userInjuries/${id}`);
+  const response = await api.delete<DeleteInjuryResponse>(
+    `/userInjuries/${id}`
+  );
   return response.data;
 }

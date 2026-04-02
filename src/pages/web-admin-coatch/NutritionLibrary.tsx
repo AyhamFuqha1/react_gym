@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Apple,
   ChevronRight,
@@ -41,7 +41,7 @@ type CategoryCard = {
   foodCount: number;
   icon: string;
   gradient: string;
-  bgDark: string;
+  bgSoft: string;
   borderColor: string;
   textColor: string;
   description: string;
@@ -81,44 +81,44 @@ const iconOptions: IconOption[] = [
 const stylePresets = [
   {
     gradient: "from-blue-500 to-cyan-500",
-    bgDark: "bg-blue-500/10",
-    borderColor: "border-blue-500/20",
-    textColor: "text-blue-400",
+    bgSoft: "bg-blue-50",
+    borderColor: "border-blue-100",
+    textColor: "text-blue-600",
     fallbackIcon: "🥩",
   },
   {
     gradient: "from-amber-500 to-orange-500",
-    bgDark: "bg-amber-500/10",
-    borderColor: "border-amber-500/20",
-    textColor: "text-amber-400",
+    bgSoft: "bg-amber-50",
+    borderColor: "border-amber-100",
+    textColor: "text-amber-600",
     fallbackIcon: "🌾",
   },
   {
     gradient: "from-emerald-500 to-teal-500",
-    bgDark: "bg-emerald-500/10",
-    borderColor: "border-emerald-500/20",
-    textColor: "text-emerald-400",
+    bgSoft: "bg-emerald-50",
+    borderColor: "border-emerald-100",
+    textColor: "text-emerald-600",
     fallbackIcon: "🥑",
   },
   {
     gradient: "from-green-500 to-emerald-500",
-    bgDark: "bg-green-500/10",
-    borderColor: "border-green-500/20",
-    textColor: "text-green-400",
+    bgSoft: "bg-green-50",
+    borderColor: "border-green-100",
+    textColor: "text-green-600",
     fallbackIcon: "🥗",
   },
   {
     gradient: "from-pink-500 to-rose-500",
-    bgDark: "bg-pink-500/10",
-    borderColor: "border-pink-500/20",
-    textColor: "text-pink-400",
+    bgSoft: "bg-pink-50",
+    borderColor: "border-pink-100",
+    textColor: "text-pink-600",
     fallbackIcon: "🍎",
   },
   {
     gradient: "from-purple-500 to-violet-500",
-    bgDark: "bg-purple-500/10",
-    borderColor: "border-purple-500/20",
-    textColor: "text-purple-400",
+    bgSoft: "bg-purple-50",
+    borderColor: "border-purple-100",
+    textColor: "text-purple-600",
     fallbackIcon: "🍱",
   },
 ];
@@ -132,16 +132,12 @@ function mapIcon(icon: string | null | undefined, fallbackIcon: string): string 
   return found?.emoji || fallbackIcon;
 }
 
-function getIconLabel(value: string) {
-  return iconOptions.find((item) => item.value === value)?.label || value;
-}
-
 function getCategoryVisual(index: number, item: GeneralNutritionItem) {
   const preset = stylePresets[index % stylePresets.length];
 
   return {
     gradient: preset.gradient,
-    bgDark: preset.bgDark,
+    bgSoft: preset.bgSoft,
     borderColor: preset.borderColor,
     textColor: preset.textColor,
     icon: mapIcon(item.icon, preset.fallbackIcon),
@@ -158,7 +154,7 @@ function mapCategories(data: GeneralNutritionItem[]): CategoryCard[] {
       foodCount: item.foods.length,
       icon: visual.icon,
       gradient: visual.gradient,
-      bgDark: visual.bgDark,
+      bgSoft: visual.bgSoft,
       borderColor: visual.borderColor,
       textColor: visual.textColor,
       description: item.description?.trim() || "No description available.",
@@ -168,6 +164,11 @@ function mapCategories(data: GeneralNutritionItem[]): CategoryCard[] {
 
 export function NutritionLibrary() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const dashboardBase = location.pathname.startsWith("/dashboard/coach")
+    ? "/dashboard/coach"
+    : "/dashboard/admin";
 
   const [categories, setCategories] = useState<CategoryCard[]>([]);
   const [rawCategories, setRawCategories] = useState<GeneralNutritionItem[]>([]);
@@ -328,92 +329,92 @@ export function NutritionLibrary() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -m-8 p-8">
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-3">
-              Nutrition Library
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Manage food database organized by nutrition categories
-            </p>
-          </div>
-
-          <Button
-            onClick={() => {
-              setCreateForm(initialForm);
-              setSubmitError("");
-              setIsCreateOpen(true);
-            }}
-            className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 h-12 px-6 text-base"
-          >
-            <Plus className="mr-2" size={20} />
-            Create Category
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900">
+            Nutrition Library
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Manage food database organized by nutrition categories
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm mb-2">Total Foods</p>
-                <p className="text-4xl font-bold text-white">{totalFoods}</p>
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Apple className="w-7 h-7 text-white" />
-              </div>
+        <Button
+          onClick={() => {
+            setCreateForm(initialForm);
+            setSubmitError("");
+            setIsCreateOpen(true);
+          }}
+          className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
+        >
+          <Plus className="mr-2" size={18} />
+          Create Category
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Total Foods</p>
+              <p className="text-2xl font-bold text-gray-900">{totalFoods}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <Apple className="w-6 h-6 text-white" />
             </div>
           </div>
+        </div>
 
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm mb-2">Categories</p>
-                <p className="text-4xl font-bold text-white">
-                  {categories.length}
-                </p>
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <TrendingUp className="w-7 h-7 text-white" />
-              </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Categories</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {categories.length}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-white" />
             </div>
           </div>
+        </div>
 
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm mb-2">Avg per Category</p>
-                <p className="text-4xl font-bold text-white">
-                  {averageFoodsPerCategory}
-                </p>
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-                <span className="text-2xl">📊</span>
-              </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Avg per Category</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {averageFoodsPerCategory}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <span className="text-xl">📊</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h2 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-2">
+      <div>
+        <div className="mb-4">
+          <h2 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
             Food Categories
           </h2>
-          <p className="text-gray-400">Select a category to view and manage foods</p>
+          <p className="text-gray-500 text-sm">
+            Select a category to view and manage foods
+          </p>
         </div>
 
         {isLoading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-12 flex items-center justify-center">
+          <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
             <Loader2 className="w-8 h-8 animate-spin text-[#14B8A6]" />
           </div>
         ) : pageError ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-red-300">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-600">
             {pageError}
           </div>
         ) : categories.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-gray-300">
+          <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm">
             No nutrition categories found.
           </div>
         ) : (
@@ -421,48 +422,48 @@ export function NutritionLibrary() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className={`bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border ${category.borderColor} rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 group`}
+                className={`bg-white border ${category.borderColor} rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300`}
               >
-                <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start justify-between mb-5">
                   <div
-                    className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center text-3xl shadow-lg`}
+                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center text-2xl shadow-sm`}
                   >
                     {category.icon}
                   </div>
 
                   <div
-                    className={`${category.bgDark} ${category.borderColor} border px-4 py-1.5 rounded-full`}
+                    className={`${category.bgSoft} ${category.borderColor} border px-3 py-1 rounded-full`}
                   >
-                    <span className={`${category.textColor} text-sm font-bold`}>
+                    <span className={`${category.textColor} text-sm font-semibold`}>
                       {category.foodCount} foods
                     </span>
                   </div>
                 </div>
 
-                <h3 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-2">
+                <h3 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-2 capitalize">
                   {category.name}
                 </h3>
 
-                <p className="text-gray-400 text-sm mb-6">
+                <p className="text-gray-500 text-sm mb-5 min-h-[40px]">
                   {category.description}
                 </p>
 
                 <div className="space-y-3">
                   <Button
                     onClick={() =>
-                      navigate(`/dashboard/admin/nutrition/${category.id}`)
+                      navigate(`${dashboardBase}/nutrition/${category.id}`)
                     }
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white group-hover:bg-white/15 transition-all h-12"
+                    className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900 rounded-xl h-11"
                   >
                     View Foods
-                    <ChevronRight className="ml-2 w-5 h-5" />
+                    <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>
 
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       type="button"
                       onClick={() => handleOpenEdit(category.id)}
-                      className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                      className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl"
                     >
                       <Pencil className="mr-2 h-4 w-4" />
                       Update
@@ -471,7 +472,7 @@ export function NutritionLibrary() {
                     <Button
                       type="button"
                       onClick={() => handleOpenDelete(category.id)}
-                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
+                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete
@@ -494,7 +495,7 @@ export function NutritionLibrary() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
             <DialogTitle>Create Nutrition Category</DialogTitle>
           </DialogHeader>
@@ -512,6 +513,7 @@ export function NutritionLibrary() {
                   }))
                 }
                 placeholder="e.g. vegetables"
+                className="mt-2 rounded-xl"
               />
             </div>
 
@@ -526,7 +528,7 @@ export function NutritionLibrary() {
                   }))
                 }
               >
-                <SelectTrigger className="mt-2">
+                <SelectTrigger className="mt-2 rounded-xl">
                   <SelectValue placeholder="Select category icon" />
                 </SelectTrigger>
                 <SelectContent>
@@ -551,6 +553,7 @@ export function NutritionLibrary() {
                   }))
                 }
                 placeholder="Write category description"
+                className="mt-2 rounded-xl"
               />
             </div>
 
@@ -564,7 +567,7 @@ export function NutritionLibrary() {
               type="button"
               onClick={handleCreate}
               disabled={isSubmitting}
-              className="w-full"
+              className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
               {isSubmitting ? "Creating..." : "Create Category"}
             </Button>
@@ -582,7 +585,7 @@ export function NutritionLibrary() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
             <DialogTitle>Update Nutrition Category</DialogTitle>
           </DialogHeader>
@@ -599,6 +602,7 @@ export function NutritionLibrary() {
                     category_name: e.target.value,
                   }))
                 }
+                className="mt-2 rounded-xl"
               />
             </div>
 
@@ -613,7 +617,7 @@ export function NutritionLibrary() {
                   }))
                 }
               >
-                <SelectTrigger className="mt-2">
+                <SelectTrigger className="mt-2 rounded-xl">
                   <SelectValue placeholder="Select category icon" />
                 </SelectTrigger>
                 <SelectContent>
@@ -637,6 +641,7 @@ export function NutritionLibrary() {
                     description: e.target.value,
                   }))
                 }
+                className="mt-2 rounded-xl"
               />
             </div>
 
@@ -650,7 +655,7 @@ export function NutritionLibrary() {
               type="button"
               onClick={handleUpdate}
               disabled={isSubmitting}
-              className="w-full"
+              className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
               {isSubmitting ? "Updating..." : "Update Category"}
             </Button>
@@ -668,15 +673,15 @@ export function NutritionLibrary() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Delete Nutrition Category</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">
+              <span className="font-semibold text-gray-900">
                 {selectedCategory?.category_name}
               </span>
               ?
@@ -693,7 +698,7 @@ export function NutritionLibrary() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsDeleteOpen(false)}
-                className="flex-1"
+                className="flex-1 rounded-xl"
               >
                 Cancel
               </Button>
@@ -702,7 +707,7 @@ export function NutritionLibrary() {
                 type="button"
                 onClick={handleDelete}
                 disabled={isSubmitting}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
               >
                 {isSubmitting ? "Deleting..." : "Delete"}
               </Button>

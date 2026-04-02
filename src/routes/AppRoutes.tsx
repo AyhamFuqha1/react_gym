@@ -4,16 +4,17 @@ import { ForgotPassword } from "../pages/login-password/ForgotPassword";
 import { ResetPassword } from "../pages/login-password/ResetPassword";
 import { WebProfile } from "../pages/web-user/WebProfile";
 import { AdminLayout } from "../layouts/AdminLayout";
-import { AdminDashboard } from "../pages/web-admin/AdminDashboard";
-import { MembersManagement } from "../pages/web-admin/MembersManagement";
-import { MemberDetails } from "../pages/web-admin/MemberDetails";
-import { ContentManagement } from "../pages/web-admin/ContentManagement";
-import { InjuryPrevention } from "../pages/web-admin/InjuryPrevention";
-import { AdminFeedback } from "../pages/web-admin/AdminFeedback";
-import { NewsManagement } from "../pages/web-admin/NewsManagement";
-import { ExercisesPage } from "../pages/web-admin/ExercisesPage";
-import { NutritionLibrary } from "../pages/web-admin/NutritionLibrary";
-import { NutritionFoods } from "../pages/web-admin/NutritionFoods";
+import { CoachLayout } from "../layouts/CoachLayout";
+import { AdminDashboard } from "../pages/web-admin-coatch/admin/AdminDashboard";
+import { MembersManagement } from "../pages/web-admin-coatch/MembersManagement";
+import { MemberDetails } from "../pages/web-admin-coatch/MemberDetails";
+import { ContentManagement } from "../pages/web-admin-coatch/ContentManagement";
+import { InjuryPrevention } from "../pages/web-admin-coatch/InjuryPrevention";
+import { AdminFeedback } from "../pages/web-admin-coatch/admin/AdminFeedback";
+import { NewsManagement } from "../pages/web-admin-coatch/NewsManagement";
+import { ExercisesPage } from "../pages/web-admin-coatch/ExercisesPage";
+import { NutritionLibrary } from "../pages/web-admin-coatch/NutritionLibrary";
+import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
 
 function DashboardMessage({ title }: { title: string }) {
   return (
@@ -91,7 +92,45 @@ export const router = createBrowserRouter([
   },
   {
     path: "/dashboard/coach",
-    element: <DashboardMessage title="Navigated to Coach Dashboard" />,
+    element: <CoachLayout />,
+    children: [
+      {
+        index: true,
+        element: <DashboardMessage title="Coach Dashboard" />,
+      },
+      {
+        path: "members",
+        element: <MembersManagement />,
+      },
+      {
+        path: "members/:memberId",
+        element: <MemberDetails />,
+      },
+      {
+        path: "content",
+        element: <ContentManagement />,
+      },
+      {
+        path: "nutrition",
+        element: <NutritionLibrary />,
+      },
+      {
+        path: "nutrition/:categoryId",
+        element: <NutritionFoods />,
+      },
+      {
+        path: "exercises/:categoryId",
+        element: <ExercisesPage />,
+      },
+      {
+        path: "injury-prevention",
+        element: <InjuryPrevention />,
+      },
+      {
+        path: "news",
+        element: <NewsManagement />,
+      },
+    ],
   },
   {
     path: "/dashboard/user",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Dumbbell,
@@ -10,7 +10,6 @@ import {
   X,
   ChevronRight,
   Layers3,
-  ChevronsUp,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -56,27 +55,39 @@ const FIXED_MUSCLE_GROUP = "General";
 const cardStyles = [
   {
     gradient: "from-blue-500 to-cyan-500",
-    borderColor: "border-blue-500/20",
+    borderColor: "border-blue-100",
+    bgSoft: "bg-blue-50",
+    textColor: "text-blue-600",
   },
   {
     gradient: "from-purple-500 to-pink-500",
-    borderColor: "border-purple-500/20",
+    borderColor: "border-purple-100",
+    bgSoft: "bg-purple-50",
+    textColor: "text-purple-600",
   },
   {
     gradient: "from-amber-500 to-orange-500",
-    borderColor: "border-amber-500/20",
+    borderColor: "border-amber-100",
+    bgSoft: "bg-amber-50",
+    textColor: "text-amber-600",
   },
   {
     gradient: "from-emerald-500 to-teal-500",
-    borderColor: "border-emerald-500/20",
+    borderColor: "border-emerald-100",
+    bgSoft: "bg-emerald-50",
+    textColor: "text-emerald-600",
   },
   {
     gradient: "from-rose-500 to-red-500",
-    borderColor: "border-rose-500/20",
+    borderColor: "border-rose-100",
+    bgSoft: "bg-rose-50",
+    textColor: "text-rose-600",
   },
   {
     gradient: "from-indigo-500 to-purple-500",
-    borderColor: "border-indigo-500/20",
+    borderColor: "border-indigo-100",
+    bgSoft: "bg-indigo-50",
+    textColor: "text-indigo-600",
   },
 ];
 
@@ -275,6 +286,11 @@ function getDefaultDescription(type: string) {
 
 export function ContentManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const dashboardBase = location.pathname.startsWith("/dashboard/coach")
+    ? "/dashboard/coach"
+    : "/dashboard/admin";
 
   const [categories, setCategories] = useState<GeneralExerciseItem[]>([]);
   const [categoriesCount, setCategoriesCount] = useState(0);
@@ -393,7 +409,7 @@ export function ContentManagement() {
   }
 
   function handleViewExercises(category: GeneralExerciseItem) {
-    navigate(`/dashboard/admin/exercises/${category.id}`, {
+    navigate(`${dashboardBase}/exercises/${category.id}`, {
       state: {
         categoryName: category.name,
       },
@@ -401,73 +417,71 @@ export function ContentManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -m-8 p-8">
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-3">
-              Exercise Library
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Manage exercises organized by categories
-            </p>
-          </div>
-
-          <Button
-            onClick={handleOpenCreate}
-            className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 h-12 px-6 text-base"
-          >
-            <Plus className="mr-2" size={20} />
-            Add Category
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900">
+            Exercise Library
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Manage exercises organized by categories
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm mb-2">Total Exercises</p>
-                <p className="text-4xl font-bold text-white">{exercisesCount}</p>
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Dumbbell className="w-7 h-7 text-white" />
-              </div>
+        <Button
+          onClick={handleOpenCreate}
+          className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
+        >
+          <Plus className="mr-2" size={18} />
+          Add Category
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Total Exercises</p>
+              <p className="text-2xl font-bold text-gray-900">{exercisesCount}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <Dumbbell className="w-6 h-6 text-white" />
             </div>
           </div>
+        </div>
 
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm mb-2">Categories</p>
-                <p className="text-4xl font-bold text-white">{categoriesCount}</p>
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <Layers3 className="w-7 h-7 text-white" />
-              </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Categories</p>
+              <p className="text-2xl font-bold text-gray-900">{categoriesCount}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <Layers3 className="w-6 h-6 text-white" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h2 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-2">
+      <div>
+        <div className="mb-4">
+          <h2 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
             Exercise Categories
           </h2>
-          <p className="text-gray-400">
+          <p className="text-gray-500 text-sm">
             Select a category to view and manage exercises
           </p>
         </div>
 
         {loading ? (
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-12 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
+            <Loader2 className="w-8 h-8 text-[#14B8A6] animate-spin" />
           </div>
         ) : categories.length === 0 ? (
-          <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-12 text-center">
+          <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center shadow-sm">
             <div className="text-5xl mb-4">📂</div>
-            <h3 className="text-2xl text-white font-semibold mb-2">No categories found</h3>
-            <p className="text-gray-400 mb-6">
+            <h3 className="text-2xl text-gray-900 font-semibold mb-2">No categories found</h3>
+            <p className="text-gray-500 mb-6">
               Start by creating your first general exercise category.
             </p>
             <Button
@@ -487,28 +501,34 @@ export function ContentManagement() {
               return (
                 <div
                   key={category.id}
-                  className={`bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border ${style.borderColor} rounded-2xl p-8 hover:scale-[1.02] hover:shadow-2xl transition-all duration-300`}
+                  className={`bg-white border ${style.borderColor} rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300`}
                 >
-                  <div className="mb-6">
+                  <div className="mb-5 flex items-start justify-between">
                     <div
-                      className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center text-3xl shadow-lg`}
+                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center text-2xl shadow-sm`}
                     >
                       {categoryIcon}
                     </div>
+
+                    <div className={`${style.bgSoft} ${style.borderColor} border px-3 py-1 rounded-full`}>
+                      <span className={`${style.textColor} text-xs font-semibold`}>
+                        Category
+                      </span>
+                    </div>
                   </div>
 
-                  <h3 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white mb-2">
+                  <h3 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-2">
                     {category.name}
                   </h3>
 
-                  <p className="text-gray-400 text-sm min-h-[48px] mb-6">
+                  <p className="text-gray-500 text-sm min-h-[48px] mb-5">
                     {category.description}
                   </p>
 
                   <div className="space-y-3">
                     <Button
                       onClick={() => handleViewExercises(category)}
-                      className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white h-11"
+                      className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900 rounded-xl h-11"
                     >
                       View Exercises
                       <ChevronRight className="ml-2 w-4 h-4" />
@@ -517,7 +537,7 @@ export function ContentManagement() {
                     <div className="flex gap-2">
                       <Button
                         onClick={() => handleOpenEdit(category.id)}
-                        className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 h-11"
+                        className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-11"
                       >
                         <Pencil className="mr-2 w-4 h-4" />
                         Edit
@@ -526,7 +546,7 @@ export function ContentManagement() {
                       <Button
                         onClick={() => handleDelete(category.id)}
                         disabled={deletingId === category.id}
-                        className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 h-11 px-4"
+                        className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl h-11 px-4"
                       >
                         {deletingId === category.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -550,12 +570,12 @@ export function ContentManagement() {
           if (!open && !submitting) resetForm();
         }}
       >
-        <DialogContent className="max-w-2xl bg-gray-800 border-gray-700 text-white rounded-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-white">
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
               {editingId !== null ? "Edit Category" : "Add New Category"}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-500">
               {editingId !== null
                 ? "Update the general exercise category details"
                 : "Create a new general exercise category"}
@@ -564,7 +584,7 @@ export function ContentManagement() {
 
           <div className="space-y-5 mt-4">
             <div>
-              <Label className="text-gray-300 text-sm font-medium mb-2 block">
+              <Label className="text-gray-700 text-sm font-medium mb-2 block">
                 Category Type
               </Label>
               <Select
@@ -584,7 +604,7 @@ export function ContentManagement() {
                   }));
                 }}
               >
-                <SelectTrigger className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
+                <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
                   <SelectValue placeholder="Choose category type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -598,19 +618,19 @@ export function ContentManagement() {
             </div>
 
             <div>
-              <Label className="text-gray-300 text-sm font-medium mb-2 block">
+              <Label className="text-gray-700 text-sm font-medium mb-2 block">
                 Name
               </Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. Chest"
-                className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
               />
             </div>
 
             <div>
-              <Label className="text-gray-300 text-sm font-medium mb-2 block">
+              <Label className="text-gray-700 text-sm font-medium mb-2 block">
                 Description
               </Label>
               <Textarea
@@ -620,7 +640,7 @@ export function ContentManagement() {
                 }
                 placeholder="e.g. Chest exercises category"
                 rows={4}
-                className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl resize-none"
+                className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
               />
             </div>
 
@@ -633,7 +653,7 @@ export function ContentManagement() {
                   }
                 }}
                 variant="outline"
-                className="flex-1 h-12 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-700 rounded-xl"
+                className="flex-1 h-11 rounded-xl"
               >
                 <X className="mr-2 w-4 h-4" />
                 Cancel
@@ -642,7 +662,7 @@ export function ContentManagement() {
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="flex-1 h-12 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 rounded-xl"
+                className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
               >
                 {submitting ? (
                   <>

@@ -4,8 +4,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   UserRound,
   Pencil,
   Trash2,
@@ -38,7 +36,6 @@ import {
   getInjuryById,
   updateInjury,
   type InjuryDashboardItem,
-  type InjuryPaginationLink,
 } from "../../services/injuries";
 
 const severityStyles: Record<
@@ -113,7 +110,6 @@ function getSafeArray(value: unknown): string[] {
 export function InjuryPrevention() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InjuryDashboardItem[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -123,7 +119,6 @@ export function InjuryPrevention() {
     last_page: 1,
     prev_page_url: null as string | null,
     next_page_url: null as string | null,
-    links: [] as InjuryPaginationLink[],
   });
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -150,7 +145,7 @@ export function InjuryPrevention() {
     notes: "",
   });
 
-  async function loadDashboard(page: number) {
+  async function loadDashboard(page = 1) {
     setLoading(true);
 
     try {
@@ -158,14 +153,13 @@ export function InjuryPrevention() {
 
       setItems(Array.isArray(response.data) ? response.data : []);
       setPagination({
-        current_page: response.current_page,
-        from: response.from,
-        to: response.to,
-        total: response.total,
-        last_page: response.last_page,
-        prev_page_url: response.prev_page_url,
-        next_page_url: response.next_page_url,
-        links: response.links ?? [],
+        current_page: response.current_page ?? 1,
+        from: response.from ?? null,
+        to: response.to ?? null,
+        total: response.total ?? 0,
+        last_page: response.last_page ?? 1,
+        prev_page_url: response.prev_page_url ?? null,
+        next_page_url: response.next_page_url ?? null,
       });
     } catch (error) {
       console.error("Failed to load injuries dashboard:", error);
@@ -179,7 +173,6 @@ export function InjuryPrevention() {
         last_page: 1,
         prev_page_url: null,
         next_page_url: null,
-        links: [],
       });
     } finally {
       setLoading(false);
@@ -197,8 +190,8 @@ export function InjuryPrevention() {
   }
 
   useEffect(() => {
-    loadDashboard(currentPage);
-  }, [currentPage]);
+    loadDashboard(1);
+  }, []);
 
   const stats = useMemo(() => {
     const activeCases = items.filter(
@@ -226,11 +219,6 @@ export function InjuryPrevention() {
       .length;
   }, [items]);
 
-  function goToPage(page: number) {
-    if (page < 1 || page > pagination.last_page || page === currentPage) return;
-    setCurrentPage(page);
-  }
-
   async function handleCreateInjury() {
     if (!createForm.user_id.trim() || !createForm.injury_type.trim()) {
       alert("User ID and injury type are required.");
@@ -250,7 +238,6 @@ export function InjuryPrevention() {
 
       setIsCreateOpen(false);
       resetCreateForm();
-      setCurrentPage(1);
       await loadDashboard(1);
     } catch (error) {
       console.error("Failed to create injury:", error);
@@ -307,7 +294,7 @@ export function InjuryPrevention() {
 
       setIsEditOpen(false);
       setSelectedId(null);
-      await loadDashboard(currentPage);
+      await loadDashboard(pagination.current_page);
     } catch (error) {
       console.error("Failed to update injury:", error);
       alert("Failed to update injury.");
@@ -327,20 +314,28 @@ export function InjuryPrevention() {
       setDeletingId(id);
       await deleteInjury(id);
 
-      const shouldGoBack =
-        items.length === 1 && currentPage > 1 && !pagination.next_page_url;
+      const nextPage =
+        items.length === 1 && pagination.current_page > 1
+          ? pagination.current_page - 1
+          : pagination.current_page;
 
-      if (shouldGoBack) {
-        setCurrentPage((prev) => prev - 1);
-      } else {
-        await loadDashboard(currentPage);
-      }
+      await loadDashboard(nextPage);
     } catch (error) {
       console.error("Failed to delete injury:", error);
       alert("Failed to delete injury.");
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function handlePreviousPage() {
+    if (!pagination.prev_page_url || loading) return;
+    await loadDashboard(pagination.current_page - 1);
+  }
+
+  async function handleNextPage() {
+    if (!pagination.next_page_url || loading) return;
+    await loadDashboard(pagination.current_page + 1);
   }
 
   return (
@@ -355,20 +350,14 @@ export function InjuryPrevention() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
-          >
-            <Plus size={16} className="mr-2" />
-            Add Injury
-          </Button>
-
-          <div className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-500 shadow-sm">
-            Page {pagination.current_page} of {pagination.last_page}
-          </div>
-        </div>
+        <Button
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
+        >
+          <Plus size={16} className="mr-2" />
+          Add Injury
+        </Button>
       </div>
 
       <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-5">
@@ -441,15 +430,19 @@ export function InjuryPrevention() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between gap-3">
-          <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-            Member Health Conditions
-          </h3>
-
-          <p className="text-sm text-gray-400">
-            Showing {pagination.from ?? 0}-{pagination.to ?? 0} of{" "}
-            {pagination.total}
-          </p>
+        <div className="px-6 py-5 border-b border-gray-50 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
+              Member Health Conditions
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              {pagination.total > 0 &&
+              pagination.from !== null &&
+              pagination.to !== null
+                ? `Showing ${pagination.from}-${pagination.to} of ${pagination.total}`
+                : "No injury cases available"}
+            </p>
+          </div>
         </div>
 
         {loading ? (
@@ -462,194 +455,166 @@ export function InjuryPrevention() {
             No injury cases found.
           </div>
         ) : (
-          <div className="p-5 space-y-4">
-            {items.map((item) => {
-              const severity = normalizeSeverity(item.severity);
-              const status = normalizeStatus(item.status);
-              const severityStyle = severityStyles[severity];
-              const statusStyle = statusStyles[status];
-              const restrictions = getSafeArray(item.exercise_restrictions);
-              const alternatives = getSafeArray(item.ai_alternatives);
+          <>
+            <div className="p-5 space-y-4">
+              {items.map((item) => {
+                const severity = normalizeSeverity(item.severity);
+                const status = normalizeStatus(item.status);
+                const severityStyle = severityStyles[severity];
+                const statusStyle = statusStyles[status];
+                const restrictions = getSafeArray(item.exercise_restrictions);
+                const alternatives = getSafeArray(item.ai_alternatives);
 
-              return (
-                <div
-                  key={item.id}
-                  className={`p-5 rounded-2xl border ${severityStyle.card}`}
-                >
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-11 h-11 rounded-xl ${severityStyle.chip} flex items-center justify-center text-sm font-700 ${severityStyle.chipText} shadow-sm flex-shrink-0`}
-                      >
-                        {getInitials(item.user_name)}
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 truncate">
-                          {item.user_name}
-                        </p>
-                        <p className="text-sm text-gray-500">{item.injury_type}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap justify-end">
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${severityStyle.chip} ${severityStyle.chipText}`}
-                      >
-                        {severity.charAt(0).toUpperCase() + severity.slice(1)}{" "}
-                        Severity
-                      </span>
-
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${statusStyle.badge}`}
-                      >
-                        {statusStyle.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <div className="bg-white/70 rounded-xl p-4 border border-red-100">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <XCircle size={14} className="text-red-600" />
-                        <p className="text-xs font-700 text-red-700 uppercase tracking-wider">
-                          Exercise Restrictions
-                        </p>
-                      </div>
-
-                      {restrictions.length === 0 ? (
-                        <p className="text-sm text-gray-500">
-                          No restrictions listed.
-                        </p>
-                      ) : (
-                        <ul className="space-y-1.5">
-                          {restrictions.map((restriction, index) => (
-                            <li
-                              key={index}
-                              className="text-sm text-gray-700 flex items-center gap-2"
-                            >
-                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0" />
-                              {restriction}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-
-                    <div className="bg-white/70 rounded-xl p-4 border border-emerald-100">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <CheckCircle size={14} className="text-emerald-600" />
-                        <p className="text-xs font-700 text-emerald-700 uppercase tracking-wider">
-                          AI Alternatives
-                        </p>
-                      </div>
-
-                      {alternatives.length === 0 ? (
-                        <p className="text-sm text-gray-500">
-                          No alternatives available.
-                        </p>
-                      ) : (
-                        <ul className="space-y-1.5">
-                          {alternatives.map((alternative, index) => (
-                            <li
-                              key={index}
-                              className="text-sm text-gray-700 flex items-center gap-2"
-                            >
-                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0" />
-                              {alternative}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => handleOpenEdit(item.id)}
-                      className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 text-xs hover:shadow-md"
-                    >
-                      <Pencil size={14} className="mr-1.5" />
-                      Update Plan
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenEdit(item.id)}
-                      className="rounded-xl border-gray-300 text-xs hover:border-[#0D7D6D] hover:text-[#0D7D6D]"
-                    >
-                      Add Note
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDelete(item.id)}
-                      disabled={deletingId === item.id}
-                      className="rounded-xl border-red-200 text-red-600 text-xs hover:bg-red-50"
-                    >
-                      {deletingId === item.id ? (
-                        <Loader2 size={14} className="mr-1.5 animate-spin" />
-                      ) : (
-                        <Trash2 size={14} className="mr-1.5" />
-                      )}
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && pagination.last_page > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={!pagination.prev_page_url}
-              className="rounded-xl"
-            >
-              <ChevronLeft size={16} className="mr-1" />
-              Previous
-            </Button>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {pagination.links
-                .filter((link) => link.page !== null)
-                .map((link, index) => (
-                  <button
-                    key={`${link.label}-${index}`}
-                    type="button"
-                    onClick={() => link.page && goToPage(link.page)}
-                    className={`min-w-9 h-9 px-3 rounded-xl text-sm font-medium border transition-colors ${
-                      link.active
-                        ? "bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-transparent"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-[#0D7D6D] hover:text-[#0D7D6D]"
-                    }`}
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-5 rounded-2xl border ${severityStyle.card}`}
                   >
-                    {link.page}
-                  </button>
-                ))}
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-11 h-11 rounded-xl ${severityStyle.chip} flex items-center justify-center text-sm font-700 ${severityStyle.chipText} shadow-sm flex-shrink-0`}
+                        >
+                          {getInitials(item.user_name)}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 truncate">
+                            {item.user_name}
+                          </p>
+                          <p className="text-sm text-gray-500">{item.injury_type}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full ${severityStyle.chip} ${severityStyle.chipText}`}
+                        >
+                          {severity.charAt(0).toUpperCase() + severity.slice(1)} Severity
+                        </span>
+
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${statusStyle.badge}`}
+                        >
+                          {statusStyle.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-white/70 rounded-xl p-4 border border-red-100">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <XCircle size={14} className="text-red-600" />
+                          <p className="text-xs font-700 text-red-700 uppercase tracking-wider">
+                            Exercise Restrictions
+                          </p>
+                        </div>
+
+                        {restrictions.length === 0 ? (
+                          <p className="text-sm text-gray-500">
+                            No restrictions listed.
+                          </p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {restrictions.map((restriction, index) => (
+                              <li
+                                key={index}
+                                className="text-sm text-gray-700 flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0" />
+                                {restriction}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="bg-white/70 rounded-xl p-4 border border-emerald-100">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <CheckCircle size={14} className="text-emerald-600" />
+                          <p className="text-xs font-700 text-emerald-700 uppercase tracking-wider">
+                            AI Alternatives
+                          </p>
+                        </div>
+
+                        {alternatives.length === 0 ? (
+                          <p className="text-sm text-gray-500">
+                            No alternatives available.
+                          </p>
+                        ) : (
+                          <ul className="space-y-1.5">
+                            {alternatives.map((alternative, index) => (
+                              <li
+                                key={index}
+                                className="text-sm text-gray-700 flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0" />
+                                {alternative}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleOpenEdit(item.id)}
+                        className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 text-xs hover:shadow-md"
+                      >
+                        <Pencil size={14} className="mr-1.5" />
+                        Update Injury
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(item.id)}
+                        disabled={deletingId === item.id}
+                        className="rounded-xl border-red-200 text-red-600 text-xs hover:bg-red-50"
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 size={14} className="mr-1.5 animate-spin" />
+                        ) : (
+                          <Trash2 size={14} className="mr-1.5" />
+                        )}
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={!pagination.next_page_url}
-              className="rounded-xl"
-            >
-              Next
-              <ChevronRight size={16} className="ml-1" />
-            </Button>
-          </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-500">
+                Page {pagination.current_page} of {pagination.last_page}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handlePreviousPage}
+                  disabled={!pagination.prev_page_url || loading}
+                  className="rounded-xl border-gray-200"
+                >
+                  Previous
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleNextPage}
+                  disabled={!pagination.next_page_url || loading}
+                  className="rounded-xl border-gray-200"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -792,13 +757,20 @@ export function InjuryPrevention() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+      <Dialog
+        open={isEditOpen}
+        onOpenChange={(open) => {
+          setIsEditOpen(open);
+          if (!open) {
+            setSelectedId(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Injury Record</DialogTitle>
             <DialogDescription>
-              Update injury type, severity, status, and notes using the injury
-              API.
+              Update injury type, severity, status, and notes using the injury API.
             </DialogDescription>
           </DialogHeader>
 

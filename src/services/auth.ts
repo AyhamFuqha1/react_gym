@@ -6,6 +6,9 @@ export interface LoginResponse {
   message: string;
   token: string;
   role: UserRole;
+  user_id: number;
+  user_name?: string;
+  email?: string;
 }
 
 export interface ApiMessageResponse {
@@ -23,6 +26,28 @@ export async function login(email: string, password: string) {
     password,
   });
 
+  return response.data;
+}
+
+export async function logout() {
+  const token = getToken();
+
+  if (!token) {
+    clearAuth();
+    return { message: "No token found" };
+  }
+
+  const response = await api.post<ApiMessageResponse>(
+    "/logout",
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  clearAuth();
   return response.data;
 }
 
@@ -57,10 +82,21 @@ export async function resetPassword(
   return response.data;
 }
 
-export function saveAuth(token: string, role: UserRole, email: string) {
-  localStorage.setItem("token", token);
-  localStorage.setItem("role", role);
-  localStorage.setItem("email", email);
+export function saveAuth(
+    token: string,
+    role: UserRole,
+    email: string,
+    userId: number,
+    userName?: string
+) {
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("email", email);
+    localStorage.setItem("user_id", String(userId));
+
+    if (userName) {
+      localStorage.setItem("user_name", userName);
+    }
 }
 
 export function clearAuth() {
@@ -70,7 +106,7 @@ export function clearAuth() {
   sessionStorage.removeItem("profile_id");
   sessionStorage.removeItem("reset_token");
   sessionStorage.removeItem("reset_email");
-} 
+}
 
 export function getRole() {
   return localStorage.getItem("role") as UserRole | null;

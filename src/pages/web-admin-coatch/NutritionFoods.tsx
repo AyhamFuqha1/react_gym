@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Plus,
@@ -138,16 +138,16 @@ const badgeOptions = [
 ];
 
 const badgeColors: Record<string, string> = {
-  "High Protein": "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  "Low Fat": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  "Omega-3 Rich": "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-  "Fiber Rich": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  "Low GI": "bg-green-500/20 text-green-400 border-green-500/30",
-  "Heart Healthy": "bg-rose-500/20 text-rose-400 border-rose-500/30",
-  Antioxidant: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  Balanced: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
-  "Pre-Workout": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  "Post-Workout": "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  "High Protein": "bg-blue-50 text-blue-600 border-blue-200",
+  "Low Fat": "bg-emerald-50 text-emerald-600 border-emerald-200",
+  "Omega-3 Rich": "bg-cyan-50 text-cyan-600 border-cyan-200",
+  "Fiber Rich": "bg-amber-50 text-amber-600 border-amber-200",
+  "Low GI": "bg-green-50 text-green-600 border-green-200",
+  "Heart Healthy": "bg-rose-50 text-rose-600 border-rose-200",
+  Antioxidant: "bg-purple-50 text-purple-600 border-purple-200",
+  Balanced: "bg-indigo-50 text-indigo-600 border-indigo-200",
+  "Pre-Workout": "bg-yellow-50 text-yellow-600 border-yellow-200",
+  "Post-Workout": "bg-pink-50 text-pink-600 border-pink-200",
 };
 
 function getIconEmoji(icon?: string | null) {
@@ -168,6 +168,11 @@ function toInputValue(value?: string | number | null) {
 export function NutritionFoods() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const dashboardBase = location.pathname.startsWith("/dashboard/coach")
+    ? "/dashboard/coach"
+    : "/dashboard/admin";
 
   const numericCategoryId = Number(categoryId);
 
@@ -347,11 +352,11 @@ export function NutritionFoods() {
 
   if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -m-8 p-8 flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-2">Invalid category</h2>
-          <p className="text-gray-400 mb-4">The category id is missing or invalid.</p>
-          <Button onClick={() => navigate("/dashboard/admin/nutrition")}>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid category</h2>
+          <p className="text-gray-500 mb-4">The category id is missing or invalid.</p>
+          <Button onClick={() => navigate(`${dashboardBase}/nutrition`)}>
             Back to Categories
           </Button>
         </div>
@@ -360,202 +365,196 @@ export function NutritionFoods() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -m-8 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard/admin/nutrition")}
-            className="text-gray-400 hover:text-white hover:bg-white/5 mb-4 -ml-2"
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-4">
+          <div
+            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-3xl shadow-sm`}
           >
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back to Categories
-          </Button>
+            {categoryData.icon}
+          </div>
 
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-4">
-              <div
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-4xl shadow-xl`}
-              >
-                {categoryData.icon}
-              </div>
-
-              <div>
-                <h1 className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-white mb-2 capitalize">
-                  {categoryData.name}
-                </h1>
-                <p className="text-gray-400 text-base mb-1">
-                  {categoryData.description}
-                </p>
-                <p className="text-gray-400 text-lg">
-                  {filteredFoods.length} foods in this category
-                </p>
-              </div>
-            </div>
-
+          <div>
             <Button
-              onClick={handleOpenAddFood}
-              className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 h-12 px-6 text-base"
+              variant="ghost"
+              onClick={() => navigate(`${dashboardBase}/nutrition`)}
+              className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 mb-2 -ml-3"
             >
-              <Plus className="mr-2" size={20} />
-              Add Food
+              <ArrowLeft className="mr-2 w-4 h-4" />
+              Back to Categories
             </Button>
-          </div>
-        </div>
 
-        <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Search foods..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
-              />
-            </div>
-
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-              <Select value={calorieFilter} onValueChange={setCalorieFilter}>
-                <SelectTrigger className="pl-12 h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Calories</SelectItem>
-                  <SelectItem value="low">Low (&lt;100 cal)</SelectItem>
-                  <SelectItem value="medium">Medium (100-300 cal)</SelectItem>
-                  <SelectItem value="high">High (&gt;300 cal)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 animate-spin text-[#14B8A6]" />
-          </div>
-        ) : filteredFoods.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mx-auto mb-4">
-              <Search className="w-10 h-10 text-gray-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              No foods found
-            </h3>
-            <p className="text-gray-400">
-              Try adjusting your search or filters
+            <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1 capitalize">
+              {categoryData.name}
+            </h1>
+            <p className="text-gray-500 text-sm mb-1">{categoryData.description}</p>
+            <p className="text-gray-500 text-sm">
+              {filteredFoods.length} foods in this category
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredFoods.map((food) => (
-              <div
-                key={food.id}
-                className="bg-gradient-to-br from-gray-800 to-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 hover:scale-105 hover:shadow-2xl hover:border-gray-600/50 transition-all duration-300 group"
-              >
-                <div className="relative mb-5">
-                  <div
-                    className={`w-full aspect-video rounded-xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-6xl mb-4 group-hover:scale-105 transition-transform`}
-                  >
-                    {categoryData.icon}
-                  </div>
+        </div>
 
-                  {food.badge && (
-                    <div
-                      className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg border ${
-                        badgeColors[food.badge] ||
-                        "bg-gray-700/50 text-gray-300 border-gray-600"
-                      } backdrop-blur-sm`}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        {food.badge}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-white mb-4">
-                  {food.name}
-                </h3>
-
-                <div className="space-y-3 mb-5">
-                  <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-orange-400" />
-                      <span className="text-sm text-gray-400">Calories</span>
-                    </div>
-                    <span className="text-lg font-bold text-white">
-                      {food.calories}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-gray-900/50 rounded-lg p-2 text-center">
-                      <p className="text-xs text-blue-400 mb-1">Protein</p>
-                      <p className="text-sm font-bold text-white">
-                        {food.protein}g
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-900/50 rounded-lg p-2 text-center">
-                      <p className="text-xs text-amber-400 mb-1">Carbs</p>
-                      <p className="text-sm font-bold text-white">
-                        {food.carbs}g
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-900/50 rounded-lg p-2 text-center">
-                      <p className="text-xs text-rose-400 mb-1">Fat</p>
-                      <p className="text-sm font-bold text-white">
-                        {food.fat}g
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900/50 rounded-lg p-3 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Serving Size</span>
-                    <span className="text-sm font-semibold text-white">
-                      {food.serving_size || "-"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleOpenEditFood(food)}
-                    className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 h-10"
-                  >
-                    <Edit className="mr-2 w-4 h-4" />
-                    Edit
-                  </Button>
-
-                  <Button
-                    onClick={() => handleDeleteFood(food.id)}
-                    disabled={deletingFoodId === food.id}
-                    className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 h-10 px-4"
-                  >
-                    {deletingFoodId === food.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <Button
+          onClick={handleOpenAddFood}
+          className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
+        >
+          <Plus className="mr-2" size={18} />
+          Add Food
+        </Button>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              placeholder="Search foods..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
+            />
+          </div>
+
+          <div className="relative">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+            <Select value={calorieFilter} onValueChange={setCalorieFilter}>
+              <SelectTrigger className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Calories</SelectItem>
+                <SelectItem value="low">Low (&lt;100 cal)</SelectItem>
+                <SelectItem value="medium">Medium (100-300 cal)</SelectItem>
+                <SelectItem value="high">High (&gt;300 cal)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-[#14B8A6]" />
+        </div>
+      ) : filteredFoods.length === 0 ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center shadow-sm">
+          <div className="w-20 h-20 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center mx-auto mb-4">
+            <Search className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            No foods found
+          </h3>
+          <p className="text-gray-500">
+            Try adjusting your search or filters
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredFoods.map((food) => (
+            <div
+              key={food.id}
+              className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
+            >
+              <div className="relative mb-5">
+                <div
+                  className={`w-full aspect-video rounded-xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-6xl mb-4`}
+                >
+                  {categoryData.icon}
+                </div>
+
+                {food.badge && (
+                  <div
+                    className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg border ${
+                      badgeColors[food.badge] ||
+                      "bg-gray-50 text-gray-600 border-gray-200"
+                    }`}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      {food.badge}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-4">
+                {food.name}
+              </h3>
+
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm text-gray-500">Calories</span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">
+                    {food.calories}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
+                    <p className="text-xs text-blue-600 mb-1">Protein</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {food.protein}g
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-50 rounded-lg p-2 text-center border border-amber-100">
+                    <p className="text-xs text-amber-600 mb-1">Carbs</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {food.carbs}g
+                    </p>
+                  </div>
+
+                  <div className="bg-rose-50 rounded-lg p-2 text-center border border-rose-100">
+                    <p className="text-xs text-rose-600 mb-1">Fat</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {food.fat}g
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between border border-gray-100">
+                  <span className="text-sm text-gray-500">Serving Size</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {food.serving_size || "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleOpenEditFood(food)}
+                  className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-10"
+                >
+                  <Edit className="mr-2 w-4 h-4" />
+                  Edit
+                </Button>
+
+                <Button
+                  onClick={() => handleDeleteFood(food.id)}
+                  disabled={deletingFoodId === food.id}
+                  className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl h-10 px-4"
+                >
+                  {deletingFoodId === food.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <Dialog open={isFoodDialogOpen} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-w-2xl bg-gray-800 border-gray-700 text-white rounded-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-white">
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
               {editingFood ? "Edit Food" : "Add New Food"}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-gray-500">
               {editingFood
                 ? "Update food details"
                 : "Add a new food to the nutrition database"}
@@ -564,31 +563,31 @@ export function NutritionFoods() {
 
           <div className="space-y-5 mt-4">
             <div>
-              <Label className="text-gray-300 text-sm font-medium mb-2 block">
+              <Label className="text-gray-700 text-sm font-medium mb-2 block">
                 Food Name
               </Label>
               <Input
                 placeholder="e.g., Greek Yogurt"
                 value={form.name}
                 onChange={(e) => handleChangeForm("name", e.target.value)}
-                className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Category
                 </Label>
                 <Input
                   value={categoryData.name}
                   disabled
-                  className="h-12 bg-gray-900/30 border-gray-700 text-gray-400 rounded-xl"
+                  className="h-11 bg-gray-100 border-gray-200 text-gray-500 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Badge
                 </Label>
                 <Select
@@ -597,7 +596,7 @@ export function NutritionFoods() {
                     handleChangeForm("badge", value === "none" ? "" : value)
                   }
                 >
-                  <SelectTrigger className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl">
+                  <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
                     <SelectValue placeholder="Select badge" />
                   </SelectTrigger>
                   <SelectContent>
@@ -613,12 +612,12 @@ export function NutritionFoods() {
             </div>
 
             <div>
-              <Label className="text-gray-300 text-sm font-medium mb-3 block">
+              <Label className="text-gray-700 text-sm font-medium mb-3 block">
                 Nutritional Information
               </Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <Label className="text-gray-400 text-xs mb-2 block">
+                  <Label className="text-gray-500 text-xs mb-2 block">
                     Calories
                   </Label>
                   <Input
@@ -628,12 +627,12 @@ export function NutritionFoods() {
                     onChange={(e) =>
                       handleChangeForm("calories", e.target.value)
                     }
-                    className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl"
+                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-gray-400 text-xs mb-2 block">
+                  <Label className="text-gray-500 text-xs mb-2 block">
                     Protein (g)
                   </Label>
                   <Input
@@ -643,12 +642,12 @@ export function NutritionFoods() {
                     onChange={(e) =>
                       handleChangeForm("protein", e.target.value)
                     }
-                    className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl"
+                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-gray-400 text-xs mb-2 block">
+                  <Label className="text-gray-500 text-xs mb-2 block">
                     Carbs (g)
                   </Label>
                   <Input
@@ -656,12 +655,12 @@ export function NutritionFoods() {
                     placeholder="0"
                     value={form.carbs}
                     onChange={(e) => handleChangeForm("carbs", e.target.value)}
-                    className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl"
+                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-gray-400 text-xs mb-2 block">
+                  <Label className="text-gray-500 text-xs mb-2 block">
                     Fat (g)
                   </Label>
                   <Input
@@ -669,7 +668,7 @@ export function NutritionFoods() {
                     placeholder="0"
                     value={form.fat}
                     onChange={(e) => handleChangeForm("fat", e.target.value)}
-                    className="h-12 bg-gray-900/50 border-gray-700 text-white rounded-xl"
+                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
                   />
                 </div>
               </div>
@@ -677,7 +676,7 @@ export function NutritionFoods() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Serving Size
                 </Label>
                 <Input
@@ -686,19 +685,19 @@ export function NutritionFoods() {
                   onChange={(e) =>
                     handleChangeForm("serving_size", e.target.value)
                   }
-                  className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm font-medium mb-2 block">
+                <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Image URL
                 </Label>
                 <Input
                   placeholder="optional"
                   value={form.image}
                   onChange={(e) => handleChangeForm("image", e.target.value)}
-                  className="h-12 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 rounded-xl"
+                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
               </div>
             </div>
@@ -707,7 +706,7 @@ export function NutritionFoods() {
               <Button
                 onClick={() => handleCloseDialog(false)}
                 variant="outline"
-                className="flex-1 h-12 bg-transparent border-gray-700 text-gray-300 hover:bg-gray-700 rounded-xl"
+                className="flex-1 h-11 rounded-xl"
               >
                 Cancel
               </Button>
@@ -715,7 +714,7 @@ export function NutritionFoods() {
               <Button
                 onClick={handleSubmitFood}
                 disabled={submitting}
-                className="flex-1 h-12 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-xl hover:shadow-[#0D7D6D]/30 rounded-xl"
+                className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
               >
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

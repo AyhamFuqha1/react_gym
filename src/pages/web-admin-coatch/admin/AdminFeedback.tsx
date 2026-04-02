@@ -6,11 +6,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "../../../components/ui/select";
 import {
   getFeedbackDashboard,
   type FeedbackItem,
-} from "../../services/feedback";
+} from "../../../services/feedback";
 
 type TabType = "equipment" | "ratings" | "suggestions";
 type FilterType = "all" | "pending" | "in_progress" | "resolved";

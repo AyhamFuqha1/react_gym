@@ -4,7 +4,6 @@ import {
   Users,
   BookOpen,
   Shield,
-  MessageSquare,
   Newspaper,
   LogOut,
   Dumbbell,
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 import { clearAuth, getEmail, getRole, logout } from "../services/auth";
 
-export function AdminLayout() {
+export function CoachLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -21,33 +20,32 @@ export function AdminLayout() {
   const email = getEmail();
 
   const displayRole =
-    role === "admin"
+    role === "coach"
+      ? "Coach"
+      : role === "admin"
       ? "Admin"
       : role === "manager"
       ? "Manager"
-      : role === "coach"
-      ? "Coach"
       : "User";
 
   const displayInitial = displayRole.charAt(0).toUpperCase();
 
   const navItems = [
-    { path: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/dashboard/admin/members", icon: Users, label: "Members" },
-    { path: "/dashboard/admin/content", icon: BookOpen, label: "Content" },
-    { path: "/dashboard/admin/nutrition", icon: Apple, label: "Nutrition Library" },
+    { path: "/dashboard/coach", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/dashboard/coach/members", icon: Users, label: "Members" },
+    { path: "/dashboard/coach/content", icon: BookOpen, label: "Content" },
+    { path: "/dashboard/coach/nutrition", icon: Apple, label: "Nutrition Library" },
     {
-      path: "/dashboard/admin/injury-prevention",
+      path: "/dashboard/coach/injury-prevention",
       icon: Shield,
       label: "Injury Prevention",
     },
-    { path: "/dashboard/admin/feedback", icon: MessageSquare, label: "Feedback" },
-    { path: "/dashboard/admin/news", icon: Newspaper, label: "News" },
+    { path: "/dashboard/coach/news", icon: Newspaper, label: "News" },
   ];
 
   const isActive = (path: string) => {
-    if (path === "/dashboard/admin") {
-      return location.pathname === "/dashboard/admin";
+    if (path === "/dashboard/coach") {
+      return location.pathname === "/dashboard/coach";
     }
     return location.pathname.startsWith(path);
   };
@@ -75,7 +73,7 @@ export function AdminLayout() {
               <h1 className="font-['Plus_Jakarta_Sans',sans-serif] font-700 text-white text-base tracking-tight">
                 FitMind
               </h1>
-              <p className="text-[#7FD4C9]/60 text-xs">Admin Portal</p>
+              <p className="text-[#7FD4C9]/60 text-xs">Coach Portal</p>
             </div>
           </div>
         </div>
@@ -96,7 +94,7 @@ export function AdminLayout() {
 
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           <p className="text-[#7FD4C9]/30 text-xs font-medium uppercase tracking-wider px-3 mb-3">
-            Management
+            Coach Panel
           </p>
 
           <div className="space-y-1">
@@ -173,7 +171,7 @@ export function AdminLayout() {
 
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-[#0D7D6D] animate-pulse" />
-            <span className="text-sm text-gray-500">System Active</span>
+            <span className="text-sm text-gray-500">Coach Session Active</span>
           </div>
         </div>
 
