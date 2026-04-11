@@ -11,36 +11,14 @@ import {
   getFeedbackDashboard,
   type FeedbackItem,
 } from "../../../services/feedback";
+import {
+  formatDate,
+  formatStatusLabel,
+  getInitials,
+} from "../../../utils/feedback";
 
 type TabType = "equipment" | "ratings" | "suggestions";
 type FilterType = "all" | "pending" | "in_progress" | "resolved";
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
-
-function formatStatusLabel(status: string) {
-  if (status === "in_progress") return "In Progress";
-  if (status === "pending") return "Pending";
-  if (status === "resolved") return "Resolved";
-  return status.replace(/_/g, " ");
-}
 
 export function AdminFeedback() {
   const [activeTab, setActiveTab] = useState<TabType>("equipment");
@@ -87,8 +65,7 @@ export function AdminFeedback() {
     {
       id: "equipment" as TabType,
       label: "Equipment Issues",
-      count: equipmentReports.filter((r) => r.details?.status === "pending")
-        .length,
+      count: equipmentReports.filter((r) => r.details?.status === "pending").length,
     },
     {
       id: "ratings" as TabType,
@@ -104,31 +81,13 @@ export function AdminFeedback() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Feedback & Reports
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Manage member feedback and equipment reports
-          </p>
-        </div>
-
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as FilterType)}
-        >
-          <SelectTrigger className="w-40 rounded-xl border-gray-200 bg-white">
-            <Filter size={14} className="mr-1.5 text-gray-400" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-          </SelectContent>
-        </Select>
+      <div>
+        <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
+          Feedback & Reports
+        </h1>
+        <p className="text-gray-400 text-sm mt-1">
+          Manage member feedback and equipment reports
+        </p>
       </div>
 
       <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex gap-1 max-w-2xl">
@@ -167,10 +126,26 @@ export function AdminFeedback() {
         <>
           {activeTab === "equipment" && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50">
+              <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
                 <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
                   Equipment Reports
                 </h3>
+
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as FilterType)}
+                >
+                  <SelectTrigger className="w-44 rounded-xl border-gray-200 bg-white">
+                    <Filter size={14} className="mr-1.5 text-gray-400" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="p-5 space-y-3">

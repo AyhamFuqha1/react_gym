@@ -10,6 +10,9 @@ import {
   XCircle,
   CheckCircle,
   Plus,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -37,6 +40,15 @@ import {
   updateInjury,
   type InjuryDashboardItem,
 } from "../../services/injuries";
+import {
+  getInitials,
+  getSafeArray,
+  normalizeSeverity,
+  normalizeStatus,
+} from "../../utils/injuries";
+
+type StatusFilter = "all" | "active" | "inactive";
+type SeverityFilter = "all" | "low" | "medium" | "high";
 
 const severityStyles: Record<
   string,
@@ -80,33 +92,6 @@ const statusStyles: Record<
   },
 };
 
-function normalizeSeverity(value: string): "low" | "medium" | "high" {
-  const normalized = value?.toLowerCase();
-  if (normalized === "high") return "high";
-  if (normalized === "medium") return "medium";
-  return "low";
-}
-
-function normalizeStatus(value: string): "active" | "inactive" {
-  const normalized = value?.toLowerCase();
-  return normalized === "inactive" ? "inactive" : "active";
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
-
-function getSafeArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item) => typeof item === "string")
-    : [];
-}
-
 export function InjuryPrevention() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InjuryDashboardItem[]>([]);
@@ -120,6 +105,9 @@ export function InjuryPrevention() {
     prev_page_url: null as string | null,
     next_page_url: null as string | null,
   });
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -192,6 +180,21 @@ export function InjuryPrevention() {
   useEffect(() => {
     loadDashboard(1);
   }, []);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const normalizedStatus = normalizeStatus(item.status);
+      const normalizedSeverity = normalizeSeverity(item.severity);
+
+      const matchesStatus =
+        statusFilter === "all" || normalizedStatus === statusFilter;
+
+      const matchesSeverity =
+        severityFilter === "all" || normalizedSeverity === severityFilter;
+
+      return matchesStatus && matchesSeverity;
+    });
+  }, [items, statusFilter, severityFilter]);
 
   const stats = useMemo(() => {
     const activeCases = items.filter(
@@ -346,7 +349,7 @@ export function InjuryPrevention() {
             Injury & Risk Prevention
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Monitor member health conditions from the injury dashboard API
+            Monitor member health conditions from the injury dashboard.
           </p>
         </div>
 
@@ -443,6 +446,41 @@ export function InjuryPrevention() {
                 : "No injury cases available"}
             </p>
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+            >
+              <SelectTrigger className="w-40 rounded-xl border-gray-200 bg-white">
+                <Filter size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={severityFilter}
+              onValueChange={(value) =>
+                setSeverityFilter(value as SeverityFilter)
+              }
+            >
+              <SelectTrigger className="w-40 rounded-xl border-gray-200 bg-white">
+                <Filter size={14} className="mr-1.5 text-gray-400" />
+                <SelectValue placeholder="Severity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Severity</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {loading ? (
@@ -450,14 +488,14 @@ export function InjuryPrevention() {
             <Loader2 className="animate-spin mr-2" size={18} />
             Loading...
           </div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-400">
             No injury cases found.
           </div>
         ) : (
           <>
             <div className="p-5 space-y-4">
-              {items.map((item) => {
+              {filteredItems.map((item) => {
                 const severity = normalizeSeverity(item.severity);
                 const status = normalizeStatus(item.status);
                 const severityStyle = severityStyles[severity];
@@ -589,29 +627,51 @@ export function InjuryPrevention() {
               })}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-gray-500">
-                Page {pagination.current_page} of {pagination.last_page}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing <strong>{pagination.from ?? 0}</strong> to{" "}
+                <strong>{pagination.to ?? 0}</strong> of{" "}
+                <strong>{pagination.total}</strong> injury cases
               </p>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
+                <button
                   onClick={handlePreviousPage}
                   disabled={!pagination.prev_page_url || loading}
-                  className="rounded-xl border-gray-200"
+                  className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  Previous
-                </Button>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-                <Button
-                  variant="outline"
+                <div className="flex gap-1">
+                  {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={async () => {
+                          if (loading) return;
+                          if (page === pagination.current_page) return;
+                          await loadDashboard(page);
+                        }}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                          pagination.current_page === page
+                            ? "bg-[#0D7D6D] text-white"
+                            : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
                   onClick={handleNextPage}
                   disabled={!pagination.next_page_url || loading}
-                  className="rounded-xl border-gray-200"
+                  className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  Next
-                </Button>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </>

@@ -62,7 +62,10 @@ export async function createExercise(payload: ExercisePayload) {
   return response.data;
 }
 
-export async function updateExercise(id: number, payload: Partial<ExercisePayload>) {
+export async function updateExercise(
+  id: number,
+  payload: Partial<ExercisePayload>
+) {
   const response = await exercisesApi.put(`/exercises/${id}`, payload);
   return response.data;
 }

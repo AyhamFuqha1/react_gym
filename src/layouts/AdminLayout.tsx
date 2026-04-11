@@ -10,6 +10,7 @@ import {
   Dumbbell,
   ChevronRight,
   Apple,
+  CreditCard,
 } from "lucide-react";
 import { clearAuth, getEmail, getRole, logout } from "../services/auth";
 
@@ -34,14 +35,27 @@ export function AdminLayout() {
   const navItems = [
     { path: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/dashboard/admin/members", icon: Users, label: "Members" },
+    {
+      path: "/dashboard/admin/subscriptions",
+      icon: CreditCard,
+      label: "Subscriptions",
+    },
     { path: "/dashboard/admin/content", icon: BookOpen, label: "Content" },
-    { path: "/dashboard/admin/nutrition", icon: Apple, label: "Nutrition Library" },
+    {
+      path: "/dashboard/admin/nutrition",
+      icon: Apple,
+      label: "Nutrition Library",
+    },
     {
       path: "/dashboard/admin/injury-prevention",
       icon: Shield,
       label: "Injury Prevention",
     },
-    { path: "/dashboard/admin/feedback", icon: MessageSquare, label: "Feedback" },
+    {
+      path: "/dashboard/admin/feedback",
+      icon: MessageSquare,
+      label: "Feedback",
+    },
     { path: "/dashboard/admin/news", icon: Newspaper, label: "News" },
   ];
 
@@ -86,7 +100,9 @@ export function AdminLayout() {
               {displayInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{displayRole}</p>
+              <p className="text-white text-sm font-medium truncate">
+                {displayRole}
+              </p>
               <p className="text-[#7FD4C9]/50 text-xs truncate">
                 {email || "No email"}
               </p>
@@ -141,7 +157,10 @@ export function AdminLayout() {
                   </span>
 
                   {active && (
-                    <ChevronRight size={14} className="ml-auto text-[#7FD4C9]/50" />
+                    <ChevronRight
+                      size={14}
+                      className="ml-auto text-[#7FD4C9]/50"
+                    />
                   )}
                 </Link>
               );
@@ -167,7 +186,8 @@ export function AdminLayout() {
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 px-8 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">
-              {location.pathname.split("/").filter(Boolean).join(" / ") || "dashboard"}
+              {location.pathname.split("/").filter(Boolean).join(" / ") ||
+                "dashboard"}
             </p>
           </div>
 

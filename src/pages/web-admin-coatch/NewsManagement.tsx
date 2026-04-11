@@ -12,6 +12,9 @@ import {
   Send,
   Pencil,
   Clock3,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
@@ -34,6 +37,17 @@ import {
   updateNews,
   type NewsItem,
 } from "../../services/news";
+import {
+  getDateValue,
+  getDisplayStatus,
+  getExcerpt,
+  getRemainingLabel,
+  getStoredUserId,
+  formatDateTimeLocal,
+  formatDisplayDateTime,
+  isNewsExpired,
+  toApiDateTime,
+} from "../../utils/news";
 
 const statusColors: Record<string, string> = {
   public: "bg-emerald-50 text-emerald-600 border-emerald-100",
@@ -58,110 +72,6 @@ type BackendPaginationState = {
 
 const LOCAL_FILTER_PAGE_SIZE = 10;
 
-function getExcerpt(content: string, maxLength = 90) {
-  if (!content) return "";
-  if (content.length <= maxLength) return content;
-  return `${content.slice(0, maxLength)}...`;
-}
-
-function getStoredUserId() {
-  const raw =
-    localStorage.getItem("user_id") || sessionStorage.getItem("user_id");
-
-  if (!raw) return null;
-
-  const parsed = Number(raw);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-function getNewsIcon(status: string) {
-  if (status === "public") {
-    return <Newspaper size={20} className="text-[#0D7D6D]" />;
-  }
-
-  if (status === "draft") {
-    return <FileText size={20} className="text-blue-500" />;
-  }
-
-  return <Trash2 size={20} className="text-red-500" />;
-}
-
-function getDateValue(date?: string | null) {
-  if (!date) return 0;
-  const time = new Date(date).getTime();
-  return Number.isNaN(time) ? 0 : time;
-}
-
-function formatDateTimeLocal(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatDisplayDateTime(value?: string | null) {
-  if (!value) return "No expiry";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
-function getExpiryTime(value?: string | null) {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? null : time;
-}
-
-function isNewsExpired(item: NewsItem | null) {
-  if (!item) return false;
-
-  if (item.status === "deleted") return false;
-  if (item.is_expired) return true;
-
-  const expiryTime = getExpiryTime(item.expires_at);
-  if (expiryTime == null) return false;
-
-  return expiryTime <= Date.now();
-}
-
-function getRemainingLabel(item: NewsItem | null) {
-  if (!item) return "No expiry";
-  if (item.status === "deleted") return "In trash";
-
-  const expiryTime = getExpiryTime(item.expires_at);
-  if (expiryTime == null) return "No expiry";
-
-  const diffMs = expiryTime - Date.now();
-
-  if (diffMs <= 0) return "Expired";
-
-  const totalMinutes = Math.ceil(diffMs / (1000 * 60));
-  const totalHours = Math.ceil(diffMs / (1000 * 60 * 60));
-  const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} minute(s) left`;
-  }
-
-  if (totalHours < 24) {
-    return `${totalHours} hour(s) left`;
-  }
-
-  return `${totalDays} day(s) left`;
-}
-
-function getDisplayStatus(item: NewsItem | null) {
-  if (!item) return "unknown";
-  if (item.status === "deleted") return "deleted";
-  if (isNewsExpired(item)) return "expired";
-  return item.status;
-}
-
 export function NewsManagement() {
   const [isAddingNews, setIsAddingNews] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -173,10 +83,7 @@ export function NewsManagement() {
   const [viewLoading, setViewLoading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // بيانات الصفحة الحالية من الباك (لـ All)
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-
-  // جميع الأخبار محليًا (للفلاتر الأخرى)
   const [allNewsItems, setAllNewsItems] = useState<NewsItem[]>([]);
 
   const [stats, setStats] = useState({
@@ -212,6 +119,7 @@ export function NewsManagement() {
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditingNews, setIsEditingNews] = useState(false);
@@ -327,12 +235,18 @@ export function NewsManagement() {
     [stats]
   );
 
-  // فلترة جميع الأخبار محليًا للفلاتر غير All
   const fullyFilteredItems = useMemo(() => {
     const source = filterStatus === "all" ? newsItems : allNewsItems;
 
     const filteredItems = source.filter((item) => {
       const expired = isNewsExpired(item);
+
+      const matchesSearch =
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.author_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
 
       if (filterStatus === "all") {
         return item.status !== "deleted";
@@ -367,9 +281,8 @@ export function NewsManagement() {
 
       return dateA - dateB;
     });
-  }, [filterStatus, sortOrder, newsItems, allNewsItems]);
+  }, [filterStatus, sortOrder, newsItems, allNewsItems, searchQuery]);
 
-  // العناصر المعروضة فعلًا
   const visibleNewsItems = useMemo(() => {
     if (filterStatus === "all") {
       return fullyFilteredItems;
@@ -413,7 +326,16 @@ export function NewsManagement() {
 
   useEffect(() => {
     setLocalFilteredPage(1);
-  }, [filterStatus, sortOrder]);
+  }, [filterStatus, sortOrder, searchQuery]);
+
+  useEffect(() => {
+    if (
+      filterStatus !== "all" &&
+      localFilteredPage > localPaginationInfo.last_page
+    ) {
+      setLocalFilteredPage(localPaginationInfo.last_page);
+    }
+  }, [filterStatus, localFilteredPage, localPaginationInfo.last_page]);
 
   function resetForm() {
     setForm({
@@ -421,11 +343,6 @@ export function NewsManagement() {
       content: "",
       expires_at: "",
     });
-  }
-
-  function toApiDateTime(value?: string) {
-    if (!value) return null;
-    return `${value.replace("T", " ")}:00`;
   }
 
   async function handleCreate(status: "public" | "draft") {
@@ -470,9 +387,11 @@ export function NewsManagement() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: number, isPermanent = false) {
     const confirmed = window.confirm(
-      "Are you sure you want to move this news item to trash?"
+      isPermanent
+        ? "Are you sure you want to permanently delete this news item?"
+        : "Are you sure you want to move this news item to trash?"
     );
 
     if (!confirmed) return;
@@ -496,7 +415,11 @@ export function NewsManagement() {
       }
     } catch (error) {
       console.error("Failed to delete news:", error);
-      alert("Failed to delete news.");
+      alert(
+        isPermanent
+          ? "Failed to permanently delete news."
+          : "Failed to delete news."
+      );
     } finally {
       setDeletingId(null);
     }
@@ -802,7 +725,17 @@ export function NewsManagement() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+            <div className="relative min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search news..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-10 rounded-xl border-gray-200 bg-white"
+              />
+            </div>
+
             <div className="flex rounded-xl border border-gray-200 p-1 bg-gray-50 flex-wrap">
               <button
                 type="button"
@@ -906,7 +839,13 @@ export function NewsManagement() {
                       className="flex items-start gap-4 flex-1 min-w-0 text-left"
                     >
                       <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 border border-gray-100">
-                        {getNewsIcon(item.status)}
+                        {item.status === "public" ? (
+                          <Newspaper size={20} className="text-[#0D7D6D]" />
+                        ) : item.status === "draft" ? (
+                          <FileText size={20} className="text-blue-500" />
+                        ) : (
+                          <Trash2 size={20} className="text-red-500" />
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -1001,50 +940,78 @@ export function NewsManagement() {
                         </button>
                       )}
 
-                      {item.status !== "deleted" && (
-                        <button
-                          type="button"
-                          title="Delete"
-                          onClick={() => handleDelete(item.id)}
-                          disabled={deletingId === item.id}
-                          className="w-8 h-8 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all disabled:opacity-60"
-                        >
-                          {deletingId === item.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        title={item.status === "deleted" ? "Delete Permanently" : "Delete"}
+                        onClick={() =>
+                          handleDelete(item.id, item.status === "deleted")
+                        }
+                        disabled={deletingId === item.id}
+                        className="w-8 h-8 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all disabled:opacity-60"
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-gray-500">
-                Page {listMeta.current_page} of {listMeta.last_page}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing <strong>{listMeta.from ?? 0}</strong> to{" "}
+                <strong>{listMeta.to ?? 0}</strong> of{" "}
+                <strong>{listMeta.total}</strong> news items
               </p>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
+                <button
                   onClick={handlePreviousPage}
                   disabled={!listMeta.hasPrev || loading}
-                  className="rounded-xl border-gray-200"
+                  className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  Previous
-                </Button>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-                <Button
-                  variant="outline"
+                <div className="flex gap-1">
+                  {Array.from({ length: listMeta.last_page }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={async () => {
+                          if (loading) return;
+
+                          if (filterStatus === "all") {
+                            if (page === backendPagination.current_page) return;
+                            await loadPageData(page);
+                            return;
+                          }
+
+                          setLocalFilteredPage(page);
+                        }}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                          listMeta.current_page === page
+                            ? "bg-[#0D7D6D] text-white"
+                            : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
                   onClick={handleNextPage}
                   disabled={!listMeta.hasNext || loading}
-                  className="rounded-xl border-gray-200"
+                  className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  Next
-                </Button>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </>
@@ -1126,6 +1093,29 @@ export function NewsManagement() {
                     )}
                   </Button>
                 )}
+
+                <Button
+                  type="button"
+                  onClick={() =>
+                    handleDelete(
+                      selectedNews.id,
+                      selectedNews.status === "deleted"
+                    )
+                  }
+                  disabled={deletingId === selectedNews.id}
+                  className="h-8 rounded-lg bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {deletingId === selectedNews.id ? (
+                    <>
+                      <Loader2 size={14} className="mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : selectedNews.status === "deleted" ? (
+                    "Delete Permanently"
+                  ) : (
+                    "Move to Trash"
+                  )}
+                </Button>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">

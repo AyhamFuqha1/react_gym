@@ -10,7 +10,6 @@ import {
   Flame,
   Loader2,
 } from "lucide-react";
-import api from "../../services/api";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -28,142 +27,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-
-type FoodCategory = {
-  id: number;
-  category_name: string;
-  icon: string | null;
-  description: string | null;
-};
-
-type FoodItem = {
-  id: number;
-  name: string;
-  calories: string;
-  protein: string;
-  carbs: string;
-  fat: string;
-  badge: string | null;
-  image: string | null;
-  serving_size: string | null;
-  category: FoodCategory;
-};
-
-type FoodsResponse = {
-  data: FoodItem[];
-  links?: {
-    first: string | null;
-    last: string | null;
-    prev: string | null;
-    next: string | null;
-  };
-  meta?: {
-    current_page: number;
-    from: number | null;
-    last_page: number;
-    path: string;
-    per_page: number;
-    to: number | null;
-    total: number;
-  };
-};
-
-type FoodFormState = {
-  name: string;
-  calories: string;
-  protein: string;
-  carbs: string;
-  fat: string;
-  serving_size: string;
-  badge: string;
-  image: string;
-};
-
-const initialFormState: FoodFormState = {
-  name: "",
-  calories: "",
-  protein: "",
-  carbs: "",
-  fat: "",
-  serving_size: "",
-  badge: "",
-  image: "",
-};
-
-const iconEmojiMap: Record<string, string> = {
-  protein: "🥩",
-  carbohydrates: "🌽",
-  carbs: "🌽",
-  vegetables: "🥗",
-  fruits: "🍎",
-  seafood: "🐟",
-  "healthy fat": "🥑",
-  "healthy fats": "🥑",
-  fats: "🥑",
-  dairy: "🥛",
-  snacks: "🥨",
-  hydration: "💧",
-  mixed: "🍱",
-  "mixed meals": "🍱",
-};
-
-const gradientMap: Record<string, string> = {
-  protein: "from-rose-500 to-red-500",
-  carbohydrates: "from-amber-500 to-orange-500",
-  carbs: "from-amber-500 to-orange-500",
-  vegetables: "from-green-500 to-emerald-500",
-  fruits: "from-pink-500 to-rose-500",
-  seafood: "from-cyan-500 to-blue-500",
-  "healthy fat": "from-emerald-500 to-teal-500",
-  "healthy fats": "from-emerald-500 to-teal-500",
-  fats: "from-emerald-500 to-teal-500",
-  dairy: "from-sky-500 to-indigo-500",
-  snacks: "from-violet-500 to-purple-500",
-  hydration: "from-blue-500 to-cyan-500",
-  mixed: "from-purple-500 to-violet-500",
-  "mixed meals": "from-purple-500 to-violet-500",
-};
-
-const badgeOptions = [
-  "High Protein",
-  "Low Fat",
-  "Fiber Rich",
-  "Heart Healthy",
-  "Low GI",
-  "Omega-3 Rich",
-  "Balanced",
-  "Antioxidant",
-  "Pre-Workout",
-  "Post-Workout",
-];
-
-const badgeColors: Record<string, string> = {
-  "High Protein": "bg-blue-50 text-blue-600 border-blue-200",
-  "Low Fat": "bg-emerald-50 text-emerald-600 border-emerald-200",
-  "Omega-3 Rich": "bg-cyan-50 text-cyan-600 border-cyan-200",
-  "Fiber Rich": "bg-amber-50 text-amber-600 border-amber-200",
-  "Low GI": "bg-green-50 text-green-600 border-green-200",
-  "Heart Healthy": "bg-rose-50 text-rose-600 border-rose-200",
-  Antioxidant: "bg-purple-50 text-purple-600 border-purple-200",
-  Balanced: "bg-indigo-50 text-indigo-600 border-indigo-200",
-  "Pre-Workout": "bg-yellow-50 text-yellow-600 border-yellow-200",
-  "Post-Workout": "bg-pink-50 text-pink-600 border-pink-200",
-};
-
-function getIconEmoji(icon?: string | null) {
-  if (!icon) return "🥗";
-  return iconEmojiMap[icon.toLowerCase()] || "🥗";
-}
-
-function getGradient(icon?: string | null) {
-  if (!icon) return "from-green-500 to-emerald-500";
-  return gradientMap[icon.toLowerCase()] || "from-green-500 to-emerald-500";
-}
-
-function toInputValue(value?: string | number | null) {
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
+import {
+  createFood,
+  deleteFood,
+  getFoods,
+  updateFood,
+  type FoodItem,
+} from "../../services/foods";
+import {
+  badgeColors,
+  badgeOptions,
+  filterFoods,
+  getCategoryData,
+  initialFormState,
+  toInputValue,
+  type FoodFormState,
+} from "../../utils/foods";
 
 export function NutritionFoods() {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -191,8 +70,8 @@ export function NutritionFoods() {
   const loadFoods = async () => {
     try {
       setLoading(true);
-      const response = await api.get<FoodsResponse>("/foods");
-      setFoods(response.data.data || []);
+      const response = await getFoods();
+      setFoods(response.data || []);
     } catch (error) {
       console.error("Failed to load foods:", error);
       setFoods([]);
@@ -203,10 +82,7 @@ export function NutritionFoods() {
   };
 
   useEffect(() => {
-    if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-      return;
-    }
-
+    if (!numericCategoryId || Number.isNaN(numericCategoryId)) return;
     loadFoods();
   }, [numericCategoryId]);
 
@@ -216,42 +92,12 @@ export function NutritionFoods() {
   }, [foods, numericCategoryId]);
 
   const filteredFoods = useMemo(() => {
-    return categoryFoods.filter((food) => {
-      const matchesSearch = food.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-
-      const calories = Number(food.calories);
-      let matchesCalories = true;
-
-      if (calorieFilter === "low") matchesCalories = calories < 100;
-      if (calorieFilter === "medium") {
-        matchesCalories = calories >= 100 && calories < 300;
-      }
-      if (calorieFilter === "high") matchesCalories = calories >= 300;
-
-      return matchesSearch && matchesCalories;
-    });
-  }, [categoryFoods, searchQuery, calorieFilter]);
+    if (!numericCategoryId || Number.isNaN(numericCategoryId)) return [];
+    return filterFoods(foods, numericCategoryId, searchQuery, calorieFilter);
+  }, [foods, numericCategoryId, searchQuery, calorieFilter]);
 
   const categoryData = useMemo(() => {
-    const firstFood = categoryFoods[0];
-
-    if (firstFood?.category) {
-      return {
-        name: firstFood.category.category_name,
-        description: firstFood.category.description || "No description available",
-        icon: getIconEmoji(firstFood.category.icon),
-        gradient: getGradient(firstFood.category.icon),
-      };
-    }
-
-    return {
-      name: `Category #${categoryId ?? ""}`,
-      description: "No foods found in this category yet",
-      icon: "🥗",
-      gradient: "from-green-500 to-emerald-500",
-    };
+    return getCategoryData(categoryFoods, categoryId);
   }, [categoryFoods, categoryId]);
 
   const resetForm = () => {
@@ -316,9 +162,9 @@ export function NutritionFoods() {
       };
 
       if (editingFood) {
-        await api.put(`/foods/${editingFood.id}`, payload);
+        await updateFood(editingFood.id, payload);
       } else {
-        await api.post("/foods", payload);
+        await createFood(payload);
       }
 
       await loadFoods();
@@ -337,7 +183,7 @@ export function NutritionFoods() {
   const handleDeleteFood = async (foodId: number) => {
     try {
       setDeletingFoodId(foodId);
-      await api.delete(`/foods/${foodId}`);
+      await deleteFood(foodId);
       await loadFoods();
     } catch (error: any) {
       console.error("Failed to delete food:", error);
@@ -354,8 +200,12 @@ export function NutritionFoods() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid category</h2>
-          <p className="text-gray-500 mb-4">The category id is missing or invalid.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Invalid category
+          </h2>
+          <p className="text-gray-500 mb-4">
+            The category id is missing or invalid.
+          </p>
           <Button onClick={() => navigate(`${dashboardBase}/nutrition`)}>
             Back to Categories
           </Button>
@@ -387,7 +237,9 @@ export function NutritionFoods() {
             <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1 capitalize">
               {categoryData.name}
             </h1>
-            <p className="text-gray-500 text-sm mb-1">{categoryData.description}</p>
+            <p className="text-gray-500 text-sm mb-1">
+              {categoryData.description}
+            </p>
             <p className="text-gray-500 text-sm">
               {filteredFoods.length} foods in this category
             </p>
@@ -444,9 +296,7 @@ export function NutritionFoods() {
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             No foods found
           </h3>
-          <p className="text-gray-500">
-            Try adjusting your search or filters
-          </p>
+          <p className="text-gray-500">Try adjusting your search or filters</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

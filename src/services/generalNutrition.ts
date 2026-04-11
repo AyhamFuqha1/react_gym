@@ -54,7 +54,6 @@ function normalizeGeneralNutritionItem(
   };
 }
 
-// Public GET for display in admin page
 export async function getGeneralNutritionCategories(): Promise<
   GeneralNutritionItem[]
 > {
@@ -67,7 +66,6 @@ export async function getGeneralNutritionCategories(): Promise<
   return rawData.map(normalizeGeneralNutritionItem);
 }
 
-// Admin CRUD
 export async function createGeneralNutrition(
   payload: GeneralNutritionPayload
 ): Promise<GeneralNutritionItem> {

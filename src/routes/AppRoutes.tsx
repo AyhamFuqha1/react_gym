@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Login } from "../pages/login-password/Login";
 import { ForgotPassword } from "../pages/login-password/ForgotPassword";
 import { ResetPassword } from "../pages/login-password/ResetPassword";
-import { WebProfile } from "../pages/web-user/WebProfile";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { CoachLayout } from "../layouts/CoachLayout";
 import { AdminDashboard } from "../pages/web-admin-coatch/admin/AdminDashboard";
@@ -14,6 +13,7 @@ import { AdminFeedback } from "../pages/web-admin-coatch/admin/AdminFeedback";
 import { NewsManagement } from "../pages/web-admin-coatch/NewsManagement";
 import { ExercisesPage } from "../pages/web-admin-coatch/ExercisesPage";
 import { NutritionLibrary } from "../pages/web-admin-coatch/NutritionLibrary";
+import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/subscriptions-management";
 import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
 
 function DashboardMessage({ title }: { title: string }) {
@@ -84,6 +84,10 @@ export const router = createBrowserRouter([
         path: "news",
         element: <NewsManagement />,
       },
+      {
+        path: "subscriptions",
+        element: <SubscriptionsManagement />,
+      },
     ],
   },
   {
@@ -131,10 +135,6 @@ export const router = createBrowserRouter([
         element: <NewsManagement />,
       },
     ],
-  },
-  {
-    path: "/dashboard/user",
-    element: <WebProfile />,
   },
   {
     path: "*",
