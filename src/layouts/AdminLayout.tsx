@@ -40,6 +40,11 @@ export function AdminLayout() {
       icon: CreditCard,
       label: "Subscriptions",
     },
+    {
+      label: "Pending Plans",
+      path: "/dashboard/admin/pending-training-plans",
+      icon: Dumbbell,
+    },
     { path: "/dashboard/admin/content", icon: BookOpen, label: "Content" },
     {
       path: "/dashboard/admin/nutrition",

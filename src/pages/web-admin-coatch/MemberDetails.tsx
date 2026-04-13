@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Crown,
@@ -60,6 +61,7 @@ export function MemberDetails() {
   const navigate = useNavigate();
   const location = useLocation();
   const { memberId } = useParams();
+  const queryClient = useQueryClient();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -71,15 +73,8 @@ export function MemberDetails() {
   const memberIdNumber = Number(memberId);
 
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [planActionLoading, setPlanActionLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [overview, setOverview] = useState<MemberOverviewResponse | null>(null);
-  const [nutrition, setNutrition] = useState<MemberNutritionResponse | null>(null);
-  const [memberRow, setMemberRow] = useState<MemberItem | null>(null);
-  const [plans, setPlans] = useState<PlanOption[]>([]);
   const [subscriptionStatusOverride, setSubscriptionStatusOverride] = useState<string | null>(null);
 
   const [isRenewDialogOpen, setIsRenewDialogOpen] = useState(false);
@@ -98,54 +93,134 @@ export function MemberDetails() {
     createInitialPlanForm(memberIdNumber || 1)
   );
 
-  const loadPageData = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const overviewQuery = useQuery({
+    queryKey: ["member-overview", memberIdNumber],
+    queryFn: () => getMemberOverview(memberIdNumber),
+    enabled: !!memberIdNumber,
+  });
 
-      const [overviewData, nutritionData, membersData, plansData] = await Promise.all([
-        getMemberOverview(memberIdNumber),
-        getMemberNutrition(memberIdNumber),
-        getMembers(),
-        getPlanOptions(),
+  const nutritionQuery = useQuery({
+    queryKey: ["member-nutrition", memberIdNumber],
+    queryFn: () => getMemberNutrition(memberIdNumber),
+    enabled: !!memberIdNumber,
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["members"],
+    queryFn: getMembers,
+    enabled: !!memberIdNumber,
+  });
+
+  const plansQuery = useQuery({
+    queryKey: ["plan-options"],
+    queryFn: getPlanOptions,
+    enabled: !!memberIdNumber,
+  });
+
+  const renewMutation = useMutation({
+    mutationFn: renewMemberSubscription,
+    onSuccess: async () => {
+      setSubscriptionStatusOverride("active");
+      setIsRenewDialogOpen(false);
+      setSelectedPlan(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["members"] }),
+        queryClient.invalidateQueries({ queryKey: ["member-overview", memberIdNumber] }),
       ]);
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to renew subscription");
+    },
+  });
 
-      setOverview(overviewData);
-      setNutrition(nutritionData);
+  const freezeMutation = useMutation({
+    mutationFn: freezeMemberSubscription,
+    onSuccess: async () => {
+      setSubscriptionStatusOverride("frozen");
+      await queryClient.invalidateQueries({ queryKey: ["members"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to freeze subscription");
+    },
+  });
 
-      const foundMember =
-        membersData.members?.find((member) => member.id === memberIdNumber) || null;
+  const resumeMutation = useMutation({
+    mutationFn: resumeMemberSubscription,
+    onSuccess: async () => {
+      setSubscriptionStatusOverride("active");
+      await queryClient.invalidateQueries({ queryKey: ["members"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to resume subscription");
+    },
+  });
 
-      setMemberRow(foundMember);
+  const createPlanMutation = useMutation({
+    mutationFn: createPlan,
+    onSuccess: async () => {
+      setIsCreatePlanDialogOpen(false);
+      setCreatePlanForm(createInitialPlanForm(memberIdNumber || 1));
+      await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to create plan");
+    },
+  });
 
-      const activePlans = (plansData || []).filter(
-        (plan) => Number(plan.is_active) === 1 || plan.is_active === true
-      );
+  const updatePlanMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: Parameters<typeof updatePlan>[1];
+    }) => updatePlan(id, payload),
+    onSuccess: async () => {
+      setIsEditPlanDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to update plan");
+    },
+  });
 
-      setPlans(activePlans);
-
-      if (
-        selectedManagePlanId &&
-        !activePlans.some((plan) => plan.id === selectedManagePlanId)
-      ) {
-        setSelectedManagePlanId(null);
-      }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load member details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!memberIdNumber) return;
-    loadPageData();
-  }, [memberIdNumber]);
+  const deletePlanMutation = useMutation({
+    mutationFn: deletePlan,
+    onSuccess: async () => {
+      setIsDeletePlanDialogOpen(false);
+      setSelectedManagePlanId(null);
+      await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || "Failed to delete plan");
+    },
+  });
 
   useEffect(() => {
     setCreatePlanForm(createInitialPlanForm(memberIdNumber || 1));
     setEditPlanForm(createInitialPlanForm(memberIdNumber || 1));
   }, [memberIdNumber]);
+
+  const overview: MemberOverviewResponse | null = overviewQuery.data ?? null;
+  const nutrition: MemberNutritionResponse | null = nutritionQuery.data ?? null;
+
+  const memberRow: MemberItem | null =
+    membersQuery.data?.members?.find((member) => member.id === memberIdNumber) || null;
+
+  const plans: PlanOption[] = Array.isArray(plansQuery.data)
+    ? plansQuery.data.filter(
+        (plan) => Number(plan.is_active) === 1 || plan.is_active === true
+      )
+    : [];
+
+  useEffect(() => {
+    if (
+      selectedManagePlanId &&
+      !plans.some((plan) => plan.id === selectedManagePlanId)
+    ) {
+      setSelectedManagePlanId(null);
+    }
+  }, [plans, selectedManagePlanId]);
 
   const selectedPlanData = useMemo(
     () => plans.find((plan) => plan.id === selectedPlan) || null,
@@ -175,6 +250,13 @@ export function MemberDetails() {
   }, [rawStatus, currentEndDate]);
 
   const hasActiveSubscription = displayStatus === "active" && remainingDays > 0;
+  const actionLoading =
+    renewMutation.isPending || freezeMutation.isPending || resumeMutation.isPending;
+  const planActionLoading =
+    createPlanMutation.isPending ||
+    updatePlanMutation.isPending ||
+    deletePlanMutation.isPending;
+
   const canRenew = !hasActiveSubscription && !actionLoading;
   const canFreeze = displayStatus === "active" && remainingDays > 0 && !actionLoading;
   const canResume = displayStatus === "frozen" && !actionLoading;
@@ -216,61 +298,24 @@ export function MemberDetails() {
       return;
     }
 
-    try {
-      setActionLoading(true);
-      setError("");
+    setError("");
 
-      const today = getLocalDateString();
-
-      await renewMemberSubscription({
-        user_id: memberIdNumber,
-        plan_id: selectedPlan,
-        discount: 0,
-        start_date: today,
-      });
-
-      setSubscriptionStatusOverride("active");
-      setIsRenewDialogOpen(false);
-      setSelectedPlan(null);
-
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to renew subscription");
-    } finally {
-      setActionLoading(false);
-    }
+    await renewMutation.mutateAsync({
+      user_id: memberIdNumber,
+      plan_id: selectedPlan,
+      discount: 0,
+      start_date: getLocalDateString(),
+    });
   };
 
   const handleFreeze = async () => {
-    try {
-      setActionLoading(true);
-      setError("");
-
-      await freezeMemberSubscription(memberIdNumber);
-      setSubscriptionStatusOverride("frozen");
-
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to freeze subscription");
-    } finally {
-      setActionLoading(false);
-    }
+    setError("");
+    await freezeMutation.mutateAsync(memberIdNumber);
   };
 
   const handleResume = async () => {
-    try {
-      setActionLoading(true);
-      setError("");
-
-      await resumeMemberSubscription(memberIdNumber);
-      setSubscriptionStatusOverride("active");
-
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to resume subscription");
-    } finally {
-      setActionLoading(false);
-    }
+    setError("");
+    await resumeMutation.mutateAsync(memberIdNumber);
   };
 
   const openCreatePlanDialog = () => {
@@ -298,70 +343,46 @@ export function MemberDetails() {
   const handleCreatePlan = async () => {
     if (!canManagePlans) return;
 
-    try {
-      setPlanActionLoading(true);
-      setError("");
+    setError("");
 
-      await createPlan({
-        user_id: Number(createPlanForm.user_id),
-        name: createPlanForm.name,
-        duration_days: Number(createPlanForm.duration_days),
-        price: Number(createPlanForm.price),
-        is_active: createPlanForm.is_active,
-      });
-
-      setIsCreatePlanDialogOpen(false);
-      setCreatePlanForm(createInitialPlanForm(memberIdNumber || 1));
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to create plan");
-    } finally {
-      setPlanActionLoading(false);
-    }
+    await createPlanMutation.mutateAsync({
+      user_id: Number(createPlanForm.user_id),
+      name: createPlanForm.name,
+      duration_days: Number(createPlanForm.duration_days),
+      price: Number(createPlanForm.price),
+      is_active: createPlanForm.is_active,
+    });
   };
 
   const handleUpdatePlan = async () => {
     if (!canManagePlans || !selectedManagePlanId) return;
 
-    try {
-      setPlanActionLoading(true);
-      setError("");
+    setError("");
 
-      await updatePlan(selectedManagePlanId, {
+    await updatePlanMutation.mutateAsync({
+      id: selectedManagePlanId,
+      payload: {
         user_id: Number(editPlanForm.user_id),
         name: editPlanForm.name,
         duration_days: Number(editPlanForm.duration_days),
         price: Number(editPlanForm.price),
         is_active: editPlanForm.is_active,
-      });
-
-      setIsEditPlanDialogOpen(false);
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to update plan");
-    } finally {
-      setPlanActionLoading(false);
-    }
+      },
+    });
   };
 
   const handleDeletePlan = async () => {
     if (!canManagePlans || !selectedManagePlanId) return;
 
-    try {
-      setPlanActionLoading(true);
-      setError("");
-
-      await deletePlan(selectedManagePlanId);
-
-      setIsDeletePlanDialogOpen(false);
-      setSelectedManagePlanId(null);
-      await loadPageData();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to delete plan");
-    } finally {
-      setPlanActionLoading(false);
-    }
+    setError("");
+    await deletePlanMutation.mutateAsync(selectedManagePlanId);
   };
+
+  const loading =
+    overviewQuery.isLoading ||
+    nutritionQuery.isLoading ||
+    membersQuery.isLoading ||
+    plansQuery.isLoading;
 
   if (loading) {
     return (

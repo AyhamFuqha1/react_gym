@@ -32,20 +32,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import {
-  createInjury,
-  deleteInjury,
-  getInjuriesDashboard,
-  getInjuryById,
-  updateInjury,
-  type InjuryDashboardItem,
-} from "../../services/injuries";
+import type { InjuryDashboardItem } from "../../services/injuries";
 import {
   getInitials,
   getSafeArray,
   normalizeSeverity,
   normalizeStatus,
 } from "../../utils/injuries";
+import { useInjuriesDashboard } from "../../hooks/injuries/queries/useInjuriesDashboard";
+import { useInjuryById } from "../../hooks/injuries/queries/useInjuryById";
+import { useCreateInjury } from "../../hooks/injuries/mutations/useCreateInjury";
+import { useUpdateInjury } from "../../hooks/injuries/mutations/useUpdateInjury";
+import { useDeleteInjury } from "../../hooks/injuries/mutations/useDeleteInjury";
 
 type StatusFilter = "all" | "active" | "inactive";
 type SeverityFilter = "all" | "low" | "medium" | "high";
@@ -93,18 +91,7 @@ const statusStyles: Record<
 };
 
 export function InjuryPrevention() {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<InjuryDashboardItem[]>([]);
-
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    from: null as number | null,
-    to: null as number | null,
-    total: 0,
-    last_page: 1,
-    prev_page_url: null as string | null,
-    next_page_url: null as string | null,
-  });
+  const [page, setPage] = useState(1);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
@@ -112,9 +99,6 @@ export function InjuryPrevention() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [form, setForm] = useState({
@@ -133,39 +117,34 @@ export function InjuryPrevention() {
     notes: "",
   });
 
-  async function loadDashboard(page = 1) {
-    setLoading(true);
+  const {
+    data: dashboardResponse,
+    isLoading: loading,
+    isFetching,
+  } = useInjuriesDashboard(page);
 
-    try {
-      const response = await getInjuriesDashboard(page);
+  const {
+    data: injuryDetailsResponse,
+    isLoading: loadingDetails,
+  } = useInjuryById(selectedId, isEditOpen);
 
-      setItems(Array.isArray(response.data) ? response.data : []);
-      setPagination({
-        current_page: response.current_page ?? 1,
-        from: response.from ?? null,
-        to: response.to ?? null,
-        total: response.total ?? 0,
-        last_page: response.last_page ?? 1,
-        prev_page_url: response.prev_page_url ?? null,
-        next_page_url: response.next_page_url ?? null,
-      });
-    } catch (error) {
-      console.error("Failed to load injuries dashboard:", error);
-      alert("Failed to load injuries dashboard.");
-      setItems([]);
-      setPagination({
-        current_page: 1,
-        from: null,
-        to: null,
-        total: 0,
-        last_page: 1,
-        prev_page_url: null,
-        next_page_url: null,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
+  const createInjuryMutation = useCreateInjury();
+  const updateInjuryMutation = useUpdateInjury();
+  const deleteInjuryMutation = useDeleteInjury();
+
+  const items: InjuryDashboardItem[] = Array.isArray(dashboardResponse?.data)
+    ? dashboardResponse.data
+    : [];
+
+  const pagination = {
+    current_page: dashboardResponse?.current_page ?? 1,
+    from: dashboardResponse?.from ?? null,
+    to: dashboardResponse?.to ?? null,
+    total: dashboardResponse?.total ?? 0,
+    last_page: dashboardResponse?.last_page ?? 1,
+    prev_page_url: dashboardResponse?.prev_page_url ?? null,
+    next_page_url: dashboardResponse?.next_page_url ?? null,
+  };
 
   function resetCreateForm() {
     setCreateForm({
@@ -178,8 +157,17 @@ export function InjuryPrevention() {
   }
 
   useEffect(() => {
-    loadDashboard(1);
-  }, []);
+    const injury = injuryDetailsResponse?.data;
+    if (!injury) return;
+
+    setForm({
+      user_id: String(injury.user_id ?? ""),
+      injury_type: injury.injury_type ?? "",
+      severity: normalizeSeverity(injury.severity),
+      status: normalizeStatus(injury.status),
+      notes: injury.notes ?? "",
+    });
+  }, [injuryDetailsResponse]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -229,9 +217,7 @@ export function InjuryPrevention() {
     }
 
     try {
-      setCreating(true);
-
-      await createInjury({
+      await createInjuryMutation.mutateAsync({
         user_id: Number(createForm.user_id),
         injury_type: createForm.injury_type.trim(),
         severity: createForm.severity,
@@ -241,39 +227,16 @@ export function InjuryPrevention() {
 
       setIsCreateOpen(false);
       resetCreateForm();
-      await loadDashboard(1);
+      setPage(1);
     } catch (error) {
       console.error("Failed to create injury:", error);
       alert("Failed to create injury.");
-    } finally {
-      setCreating(false);
     }
   }
 
-  async function handleOpenEdit(id: number) {
+  function handleOpenEdit(id: number) {
     setSelectedId(id);
     setIsEditOpen(true);
-    setLoadingDetails(true);
-
-    try {
-      const response = await getInjuryById(id);
-      const injury = response.data;
-
-      setForm({
-        user_id: String(injury.user_id ?? ""),
-        injury_type: injury.injury_type ?? "",
-        severity: normalizeSeverity(injury.severity),
-        status: normalizeStatus(injury.status),
-        notes: injury.notes ?? "",
-      });
-    } catch (error) {
-      console.error("Failed to load injury details:", error);
-      alert("Failed to load injury details.");
-      setIsEditOpen(false);
-      setSelectedId(null);
-    } finally {
-      setLoadingDetails(false);
-    }
   }
 
   async function handleSaveUpdate() {
@@ -285,24 +248,22 @@ export function InjuryPrevention() {
     }
 
     try {
-      setSaving(true);
-
-      await updateInjury(selectedId, {
-        user_id: Number(form.user_id),
-        injury_type: form.injury_type.trim(),
-        severity: form.severity,
-        status: form.status,
-        notes: form.notes.trim(),
+      await updateInjuryMutation.mutateAsync({
+        id: selectedId,
+        payload: {
+          user_id: Number(form.user_id),
+          injury_type: form.injury_type.trim(),
+          severity: form.severity,
+          status: form.status,
+          notes: form.notes.trim(),
+        },
       });
 
       setIsEditOpen(false);
       setSelectedId(null);
-      await loadDashboard(pagination.current_page);
     } catch (error) {
       console.error("Failed to update injury:", error);
       alert("Failed to update injury.");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -315,14 +276,11 @@ export function InjuryPrevention() {
 
     try {
       setDeletingId(id);
-      await deleteInjury(id);
+      await deleteInjuryMutation.mutateAsync(id);
 
-      const nextPage =
-        items.length === 1 && pagination.current_page > 1
-          ? pagination.current_page - 1
-          : pagination.current_page;
-
-      await loadDashboard(nextPage);
+      if (items.length === 1 && page > 1) {
+        setPage((prev) => prev - 1);
+      }
     } catch (error) {
       console.error("Failed to delete injury:", error);
       alert("Failed to delete injury.");
@@ -332,13 +290,13 @@ export function InjuryPrevention() {
   }
 
   async function handlePreviousPage() {
-    if (!pagination.prev_page_url || loading) return;
-    await loadDashboard(pagination.current_page - 1);
+    if (!pagination.prev_page_url || loading || isFetching) return;
+    setPage((prev) => Math.max(prev - 1, 1));
   }
 
   async function handleNextPage() {
-    if (!pagination.next_page_url || loading) return;
-    await loadDashboard(pagination.current_page + 1);
+    if (!pagination.next_page_url || loading || isFetching) return;
+    setPage((prev) => prev + 1);
   }
 
   return (
@@ -611,10 +569,12 @@ export function InjuryPrevention() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(item.id)}
-                        disabled={deletingId === item.id}
+                        disabled={
+                          deleteInjuryMutation.isPending && deletingId === item.id
+                        }
                         className="rounded-xl border-red-200 text-red-600 text-xs hover:bg-red-50"
                       >
-                        {deletingId === item.id ? (
+                        {deleteInjuryMutation.isPending && deletingId === item.id ? (
                           <Loader2 size={14} className="mr-1.5 animate-spin" />
                         ) : (
                           <Trash2 size={14} className="mr-1.5" />
@@ -637,7 +597,7 @@ export function InjuryPrevention() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePreviousPage}
-                  disabled={!pagination.prev_page_url || loading}
+                  disabled={!pagination.prev_page_url || loading || isFetching}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -645,21 +605,21 @@ export function InjuryPrevention() {
 
                 <div className="flex gap-1">
                   {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map(
-                    (page) => (
+                    (pageNumber) => (
                       <button
-                        key={page}
-                        onClick={async () => {
-                          if (loading) return;
-                          if (page === pagination.current_page) return;
-                          await loadDashboard(page);
+                        key={pageNumber}
+                        onClick={() => {
+                          if (loading || isFetching) return;
+                          if (pageNumber === pagination.current_page) return;
+                          setPage(pageNumber);
                         }}
                         className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                          pagination.current_page === page
+                          pagination.current_page === pageNumber
                             ? "bg-[#0D7D6D] text-white"
                             : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                         }`}
                       >
-                        {page}
+                        {pageNumber}
                       </button>
                     )
                   )}
@@ -667,7 +627,7 @@ export function InjuryPrevention() {
 
                 <button
                   onClick={handleNextPage}
-                  disabled={!pagination.next_page_url || loading}
+                  disabled={!pagination.next_page_url || loading || isFetching}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -787,10 +747,10 @@ export function InjuryPrevention() {
               <Button
                 type="button"
                 onClick={handleCreateInjury}
-                disabled={creating}
+                disabled={createInjuryMutation.isPending}
                 className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
               >
-                {creating ? (
+                {createInjuryMutation.isPending ? (
                   <>
                     <Loader2 size={16} className="mr-2 animate-spin" />
                     Creating...
@@ -807,7 +767,7 @@ export function InjuryPrevention() {
                   setIsCreateOpen(false);
                   resetCreateForm();
                 }}
-                disabled={creating}
+                disabled={createInjuryMutation.isPending}
                 className="flex-1 rounded-xl"
               >
                 Cancel
@@ -928,10 +888,10 @@ export function InjuryPrevention() {
                 <Button
                   type="button"
                   onClick={handleSaveUpdate}
-                  disabled={saving}
+                  disabled={updateInjuryMutation.isPending}
                   className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
                 >
-                  {saving ? (
+                  {updateInjuryMutation.isPending ? (
                     <>
                       <Loader2 size={16} className="mr-2 animate-spin" />
                       Saving...
@@ -945,7 +905,7 @@ export function InjuryPrevention() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditOpen(false)}
-                  disabled={saving}
+                  disabled={updateInjuryMutation.isPending}
                   className="flex-1 rounded-xl"
                 >
                   Cancel

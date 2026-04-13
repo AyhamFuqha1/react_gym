@@ -9,6 +9,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Input } from "../../../components/ui/input";
 import {
@@ -18,14 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/select";
-import {
-  getSubscriptionsForAdmin,
-  type SubscriptionAdminItem,
-} from "../../../services/subscriptions";
-import {
-  mapSubscriptionToRow,
-  type SubscriptionRow,
-} from "../../../utils/subscriptions";
+import { mapSubscriptionToRow, type SubscriptionRow } from "../../../utils/subscriptions";
+import { useSubscriptionsForAdmin } from "../../../hooks/subscriptions/queries/useSubscriptionsForAdmin";
 
 const statusConfig: Record<
   string,
@@ -69,10 +64,6 @@ function getCreatorRoleLabel(item: SubscriptionRow): string | null {
 }
 
 export function SubscriptionsManagement() {
-  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [creatorRoleFilter, setCreatorRoleFilter] = useState("all");
@@ -82,39 +73,15 @@ export function SubscriptionsManagement() {
 
   const itemsPerPage = 8;
 
-  useEffect(() => {
-    let mounted = true;
+  const {
+    data,
+    isLoading: loading,
+    error,
+  } = useSubscriptionsForAdmin();
 
-    const loadSubscriptions = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const data: SubscriptionAdminItem[] = await getSubscriptionsForAdmin();
-        const mapped = data.map(mapSubscriptionToRow);
-
-        if (mounted) {
-          setSubscriptions(mapped);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load subscriptions"
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadSubscriptions();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const subscriptions = useMemo(() => {
+    return Array.isArray(data) ? data.map(mapSubscriptionToRow) : [];
+  }, [data]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -167,11 +134,15 @@ export function SubscriptionsManagement() {
     setSelectedSubscription(null);
   };
 
+  const errorMessage =
+    error instanceof Error ? error.message : "Failed to load subscriptions";
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 -m-8 p-8">
         <div className="max-w-[1400px] mx-auto">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-2 text-gray-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
             Loading subscriptions...
           </div>
         </div>
@@ -184,7 +155,7 @@ export function SubscriptionsManagement() {
       <div className="min-h-screen bg-gray-50 -m-8 p-8">
         <div className="max-w-[1400px] mx-auto">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-100 text-red-600">
-            {error}
+            {errorMessage}
           </div>
         </div>
       </div>

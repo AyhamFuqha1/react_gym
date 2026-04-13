@@ -18,10 +18,9 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import {
-  getAdminDashboard,
-  type DashboardResponse,
-} from "../../../services/dashboard";
+import { Button } from "../../../components/ui/button";
+import { getRole } from "../../../services/auth";
+import { type SyncAllResponse } from "../../../services/aiSync";
 import {
   buildDashboardStatCards,
   buildMemberActivityItems,
@@ -31,30 +30,108 @@ import {
   formatCurrency,
   formatLastUpdated,
 } from "../../../utils/dashboard";
+import { useAdminDashboard } from "../../../hooks/dashboard/queries/useAdminDashboard";
+import { useSmartSync } from "../../../hooks/dashboard/mutations/useSmartSync";
+import { useFullSync } from "../../../hooks/dashboard/mutations/useFullSync";
+
+type PersistedSyncResult = {
+  result: SyncAllResponse;
+  syncedAt: string;
+};
+
+const SYNC_RESULT_STORAGE_KEY = "fitmind_last_sync_result";
+
+function formatSyncTime(value?: string) {
+  if (!value) return "Unknown";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export function AdminDashboard() {
-  const [dashboardStats, setDashboardStats] = useState<DashboardResponse | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [role, setRole] = useState("");
+  const [syncResult, setSyncResult] = useState<SyncAllResponse | null>(null);
+  const [syncError, setSyncError] = useState("");
+  const [lastSyncedAt, setLastSyncedAt] = useState("");
 
-  async function loadDashboard() {
+  const {
+    data: dashboardStats = null,
+    isLoading: loading,
+    error,
+  } = useAdminDashboard();
+
+  const smartSyncMutation = useSmartSync();
+  const fullSyncMutation = useFullSync();
+
+  function saveSyncResultToStorage(result: SyncAllResponse) {
+    const payload: PersistedSyncResult = {
+      result,
+      syncedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(SYNC_RESULT_STORAGE_KEY, JSON.stringify(payload));
+    setSyncResult(result);
+    setLastSyncedAt(payload.syncedAt);
+  }
+
+  function loadSyncResultFromStorage() {
     try {
-      setLoading(true);
-      setError("");
-      const data = await getAdminDashboard();
-      setDashboardStats(data);
+      const raw = localStorage.getItem(SYNC_RESULT_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed: PersistedSyncResult = JSON.parse(raw);
+
+      if (parsed?.result) {
+        setSyncResult(parsed.result);
+      }
+
+      if (parsed?.syncedAt) {
+        setLastSyncedAt(parsed.syncedAt);
+      }
     } catch (err) {
-      console.error("Failed to load dashboard:", err);
-      setError("Failed to load dashboard data.");
-    } finally {
-      setLoading(false);
+      console.error("Failed to load persisted sync result:", err);
+    }
+  }
+
+  async function handleSmartSync() {
+    try {
+      setSyncError("");
+      const result = await smartSyncMutation.mutateAsync();
+      saveSyncResultToStorage(result);
+    } catch (err) {
+      console.error("Smart sync failed:", err);
+      setSyncError("Smart sync failed.");
+    }
+  }
+
+  async function handleFullSync() {
+    const confirmed = window.confirm(
+      "This will run a full sync for all exercises and nutrition data and may consume higher API usage. Do you want to continue?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSyncError("");
+      const result = await fullSyncMutation.mutateAsync();
+      saveSyncResultToStorage(result);
+    } catch (err) {
+      console.error("Full sync failed:", err);
+      setSyncError("Full sync failed.");
     }
   }
 
   useEffect(() => {
-    loadDashboard();
+    setRole((getRole() ?? "").toLowerCase());
+    loadSyncResultFromStorage();
   }, []);
 
   const statCards = useMemo(() => {
@@ -75,9 +152,12 @@ export function AdminDashboard() {
     return buildMemberActivityItems(dashboardStats);
   }, [dashboardStats]);
 
+  const errorMessage =
+    error instanceof Error ? error.message : "Failed to load dashboard data.";
+
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
             Dashboard
@@ -88,9 +168,39 @@ export function AdminDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-[#E6F4F1] border border-[#0D7D6D]/20 rounded-xl px-3 py-2">
-          <Brain size={16} className="text-[#0D7D6D]" />
-          <span className="text-[#0D7D6D] text-sm font-medium">AI Active</span>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleSmartSync}
+            disabled={smartSyncMutation.isPending || fullSyncMutation.isPending}
+            className="bg-[#0D7D6D] hover:bg-[#0b6b5d] text-white rounded-xl"
+          >
+            {smartSyncMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 animate-spin" size={16} />
+                Syncing...
+              </>
+            ) : (
+              "Smart Sync"
+            )}
+          </Button>
+
+          {role === "admin" && (
+            <Button
+              onClick={handleFullSync}
+              disabled={smartSyncMutation.isPending || fullSyncMutation.isPending}
+              variant="outline"
+              className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+            >
+              {fullSyncMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 animate-spin" size={16} />
+                  Full Sync...
+                </>
+              ) : (
+                "Full Sync"
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -101,7 +211,42 @@ export function AdminDashboard() {
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
-          {error}
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {syncError ? (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
+          {syncError}
+        </div>
+      ) : null}
+
+      {syncResult ? (
+        <div className="bg-[#E6F4F1] border border-[#0D7D6D]/15 rounded-2xl p-4 text-sm text-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain size={16} className="text-[#0D7D6D]" />
+            <span className="font-semibold text-[#0D7D6D]">Last Sync Result</span>
+          </div>
+
+          <p className="mb-1">
+            Exercises — Added: {syncResult.stats.exercises.added}, Updated:{" "}
+            {syncResult.stats.exercises.updated}, Deleted:{" "}
+            {syncResult.stats.exercises.deleted}
+          </p>
+
+          <p className="mb-1">
+            Nutrition — Added: {syncResult.stats.nutrition.added}, Updated:{" "}
+            {syncResult.stats.nutrition.updated}, Deleted:{" "}
+            {syncResult.stats.nutrition.deleted}
+          </p>
+
+          <p className="mb-1 text-xs text-gray-600">
+            Last Sync Time: {formatSyncTime(lastSyncedAt)}
+          </p>
+
+          <p className="text-xs text-gray-500">
+            Elapsed: {syncResult.stats.elapsed_seconds.toFixed(2)}s
+          </p>
         </div>
       ) : null}
 

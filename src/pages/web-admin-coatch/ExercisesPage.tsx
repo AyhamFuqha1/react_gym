@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
@@ -30,14 +30,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import {
-  createExercise,
-  deleteExercise,
-  getExerciseById,
-  getExercisesByGeneralExerciseId,
-  updateExercise,
-  type ExerciseItem,
-} from "../../services/exercises";
-import {
   difficultyColors,
   getCategoryVisual,
   getErrorMessage,
@@ -45,6 +37,11 @@ import {
   normalizeDifficulty,
   type FormState,
 } from "../../utils/exercises";
+import { useExercisesByGeneralExerciseId } from "../../hooks/exercises/queries/useExercisesByGeneralExerciseId";
+import { useExerciseById } from "../../hooks/exercises/queries/useExerciseById";
+import { useCreateExercise } from "../../hooks/exercises/mutations/useCreateExercise";
+import { useUpdateExercise } from "../../hooks/exercises/mutations/useUpdateExercise";
+import { useDeleteExercise } from "../../hooks/exercises/mutations/useDeleteExercise";
 
 export function ExercisesPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -57,51 +54,32 @@ export function ExercisesPage() {
 
   const numericCategoryId = Number(categoryId);
 
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryDescription, setCategoryDescription] = useState("");
-  const [exercises, setExercises] = useState<ExerciseItem[]>([]);
+  const {
+    data,
+    isLoading: loading,
+  } = useExercisesByGeneralExerciseId(numericCategoryId);
 
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const createMutation = useCreateExercise();
+  const updateMutation = useUpdateExercise();
+  const deleteMutation = useDeleteExercise();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const editExerciseQuery = useExerciseById(
+    editingExerciseId ?? 0,
+    editingExerciseId !== null
+  );
+
+  const categoryName = data?.generalExercise?.name ?? "";
+  const categoryDescription = data?.generalExercise?.description ?? "";
+  const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
 
   const categoryStyle = getCategoryVisual(categoryName || "category");
-
-  async function loadExercises() {
-    if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const data = await getExercisesByGeneralExerciseId(numericCategoryId);
-
-      setCategoryName(data.generalExercise?.name ?? "Category");
-      setCategoryDescription(data.generalExercise?.description ?? "");
-      setExercises(Array.isArray(data.exercises) ? data.exercises : []);
-    } catch (error) {
-      console.error("Failed to load exercises:", error);
-      setCategoryName("Category");
-      setCategoryDescription("");
-      setExercises([]);
-      alert(getErrorMessage(error, "Failed to load exercises."));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadExercises();
-  }, [numericCategoryId]);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter((exercise) => {
@@ -132,27 +110,10 @@ export function ExercisesPage() {
 
   async function handleOpenEdit(id: number) {
     try {
-      setSubmitting(true);
-
-      const exercise = await getExerciseById(id);
-
-      setEditingExerciseId(exercise.id);
-      setForm({
-        name: exercise.name ?? "",
-        difficulty_level: normalizeDifficulty(
-          exercise.difficulty_level ?? "beginner"
-        ),
-        video_url: exercise.video_url ?? "",
-        instructions: exercise.instructions ?? "",
-        common_mistakes: exercise.common_mistakes ?? "",
-      });
-
-      setIsDialogOpen(true);
+      setEditingExerciseId(id);
     } catch (error) {
       console.error("Failed to load exercise details:", error);
       alert(getErrorMessage(error, "Failed to load exercise details."));
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -181,22 +142,21 @@ export function ExercisesPage() {
     };
 
     try {
-      setSubmitting(true);
-
       if (editingExerciseId !== null) {
-        await updateExercise(editingExerciseId, payload);
+        await updateMutation.mutateAsync({
+          id: editingExerciseId,
+          payload,
+          generalExerciseId: numericCategoryId,
+        });
       } else {
-        await createExercise(payload);
+        await createMutation.mutateAsync(payload);
       }
 
       setIsDialogOpen(false);
       resetForm();
-      await loadExercises();
     } catch (error) {
       console.error("Failed to save exercise:", error);
       alert(getErrorMessage(error, "Failed to save exercise."));
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -208,14 +168,46 @@ export function ExercisesPage() {
 
     try {
       setDeletingId(id);
-      await deleteExercise(id);
-      await loadExercises();
+      await deleteMutation.mutateAsync({
+        id,
+        generalExerciseId: numericCategoryId,
+      });
     } catch (error) {
       console.error("Failed to delete exercise:", error);
       alert(getErrorMessage(error, "Failed to delete exercise."));
     } finally {
       setDeletingId(null);
     }
+  }
+
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    editExerciseQuery.isLoading;
+
+  const pageLoading =
+    loading && (!data || !Array.isArray(data.exercises));
+
+  const dialogOpen =
+    isDialogOpen || editingExerciseId !== null;
+
+  if (
+    editExerciseQuery.data &&
+    editingExerciseId !== null &&
+    !isDialogOpen
+  ) {
+    const exercise = editExerciseQuery.data;
+
+    setForm({
+      name: exercise.name ?? "",
+      difficulty_level: normalizeDifficulty(
+        exercise.difficulty_level ?? "beginner"
+      ),
+      video_url: exercise.video_url ?? "",
+      instructions: exercise.instructions ?? "",
+      common_mistakes: exercise.common_mistakes ?? "",
+    });
+    setIsDialogOpen(true);
   }
 
   return (
@@ -242,7 +234,7 @@ export function ExercisesPage() {
               {categoryName || "Exercises"}
             </h1>
             <p className="text-gray-500 text-sm">
-              {loading
+              {pageLoading
                 ? "Loading exercises..."
                 : `${filteredExercises.length} exercises in this category`}
             </p>
@@ -290,7 +282,7 @@ export function ExercisesPage() {
         </div>
       </div>
 
-      {loading ? (
+      {pageLoading ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
           <Loader2 className="w-8 h-8 text-[#14B8A6] animate-spin" />
         </div>
@@ -426,10 +418,12 @@ export function ExercisesPage() {
       )}
 
       <Dialog
-        open={isDialogOpen}
+        open={dialogOpen}
         onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open && !submitting) resetForm();
+          if (!open && !isSubmitting) {
+            setIsDialogOpen(false);
+            resetForm();
+          }
         }}
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl p-0">
@@ -544,7 +538,7 @@ export function ExercisesPage() {
               <div className="flex gap-3 pt-4 sticky bottom-0 bg-white pb-1">
                 <Button
                   onClick={() => {
-                    if (!submitting) {
+                    if (!isSubmitting) {
                       setIsDialogOpen(false);
                       resetForm();
                     }
@@ -557,10 +551,10 @@ export function ExercisesPage() {
 
                 <Button
                   onClick={handleSubmit}
-                  disabled={submitting}
+                  disabled={isSubmitting}
                   className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
                 >
-                  {submitting ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 w-4 h-4 animate-spin" />
                       Saving...

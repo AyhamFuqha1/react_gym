@@ -103,6 +103,8 @@ export function clearAuth() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
   localStorage.removeItem("email");
+  localStorage.removeItem("user_id");
+  localStorage.removeItem("user_name");
   sessionStorage.removeItem("profile_id");
   sessionStorage.removeItem("reset_token");
   sessionStorage.removeItem("reset_email");
@@ -118,4 +120,9 @@ export function getToken() {
 
 export function getEmail() {
   return localStorage.getItem("email");
+}
+
+export function getUserId() {
+  const value = localStorage.getItem("user_id");
+  return value ? Number(value) : null;
 }

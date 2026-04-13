@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { MessageSquare, Wrench, Star, Filter, Loader2 } from "lucide-react";
 import {
   Select,
@@ -7,15 +7,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/select";
-import {
-  getFeedbackDashboard,
-  type FeedbackItem,
-} from "../../../services/feedback";
+import { type FeedbackItem } from "../../../services/feedback";
 import {
   formatDate,
   formatStatusLabel,
   getInitials,
 } from "../../../utils/feedback";
+import { useFeedbackDashboard } from "../../../hooks/feedback/queries/useFeedbackDashboard";
 
 type TabType = "equipment" | "ratings" | "suggestions";
 type FilterType = "all" | "pending" | "in_progress" | "resolved";
@@ -23,26 +21,14 @@ type FilterType = "all" | "pending" | "in_progress" | "resolved";
 export function AdminFeedback() {
   const [activeTab, setActiveTab] = useState<TabType>("equipment");
   const [statusFilter, setStatusFilter] = useState<FilterType>("all");
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<FeedbackItem[]>([]);
 
-  useEffect(() => {
-    async function loadFeedback() {
-      setLoading(true);
-      try {
-        const response = await getFeedbackDashboard();
-        setItems(Array.isArray(response.data) ? response.data : []);
-      } catch (error) {
-        console.error("Failed to load feedback dashboard:", error);
-        alert("Failed to load feedback dashboard.");
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    }
+  const {
+    data: response,
+    isLoading: loading,
+    error,
+  } = useFeedbackDashboard();
 
-    loadFeedback();
-  }, []);
+  const items = Array.isArray(response?.data) ? response.data : [];
 
   const equipmentReports = useMemo(() => {
     return items
@@ -78,6 +64,9 @@ export function AdminFeedback() {
       count: suggestions.length,
     },
   ];
+
+  const errorMessage =
+    error instanceof Error ? error.message : "Failed to load feedback dashboard.";
 
   return (
     <div className="space-y-6">
@@ -121,6 +110,10 @@ export function AdminFeedback() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center justify-center text-gray-500">
           <Loader2 className="animate-spin mr-2" size={18} />
           Loading...
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
+          {errorMessage}
         </div>
       ) : (
         <>

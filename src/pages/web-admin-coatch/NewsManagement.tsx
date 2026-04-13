@@ -28,15 +28,7 @@ import {
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
-import {
-  createNews,
-  deleteNews,
-  getNews,
-  getNewsById,
-  getNewsStats,
-  updateNews,
-  type NewsItem,
-} from "../../services/news";
+import type { NewsItem } from "../../services/news";
 import {
   getDateValue,
   getDisplayStatus,
@@ -48,6 +40,13 @@ import {
   isNewsExpired,
   toApiDateTime,
 } from "../../utils/news";
+import { useNews } from "../../hooks/news/queries/useNews";
+import { useNewsStats } from "../../hooks/news/queries/useNewsStats";
+import { useNewsById } from "../../hooks/news/queries/useNewsById";
+import { useCreateNews } from "../../hooks/news/mutations/useCreateNews";
+import { useUpdateNews } from "../../hooks/news/mutations/useUpdateNews";
+import { useDeleteNews } from "../../hooks/news/mutations/useDeleteNews";
+import { useQueryClient } from "@tanstack/react-query";
 
 const statusColors: Record<string, string> = {
   public: "bg-emerald-50 text-emerald-600 border-emerald-100",
@@ -59,50 +58,20 @@ const statusColors: Record<string, string> = {
 type FilterStatus = "all" | "public" | "draft" | "expired" | "deleted";
 type SortOrder = "newest" | "oldest";
 
-type BackendPaginationState = {
-  current_page: number;
-  from: number | null;
-  last_page: number;
-  per_page: number;
-  to: number | null;
-  total: number;
-  next_page_url: string | null;
-  prev_page_url: string | null;
-};
-
 const LOCAL_FILTER_PAGE_SIZE = 10;
 
 export function NewsManagement() {
+  const queryClient = useQueryClient();
+
   const [isAddingNews, setIsAddingNews] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [submittingPublic, setSubmittingPublic] = useState(false);
   const [submittingDraft, setSubmittingDraft] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [restoringId, setRestoringId] = useState<number | null>(null);
-  const [viewLoading, setViewLoading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-  const [allNewsItems, setAllNewsItems] = useState<NewsItem[]>([]);
-
-  const [stats, setStats] = useState({
-    published: 0,
-    drafts: 0,
-    total_views: 0,
-  });
-
-  const [backendPagination, setBackendPagination] = useState<BackendPaginationState>({
-    current_page: 1,
-    from: null,
-    last_page: 1,
-    per_page: 10,
-    to: null,
-    total: 0,
-    next_page_url: null,
-    prev_page_url: null,
-  });
-
+  const [page, setPage] = useState(1);
   const [localFilteredPage, setLocalFilteredPage] = useState(1);
 
   const [form, setForm] = useState({
@@ -120,93 +89,46 @@ export function NewsManagement() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [selectedNewsId, setSelectedNewsId] = useState<number | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditingNews, setIsEditingNews] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  async function loadBackendPage(page = 1) {
-    const newsResponse = await getNews(page, 10);
-    const pageData = newsResponse.data;
+  const newsQuery = useNews(page, 10);
+  const statsQuery = useNewsStats();
+  const selectedNewsQuery = useNewsById(selectedNewsId, isViewOpen || isEditingNews);
 
-    setNewsItems(pageData?.data ?? []);
-    setBackendPagination({
-      current_page: pageData?.current_page ?? 1,
-      from: pageData?.from ?? null,
-      last_page: pageData?.last_page ?? 1,
-      per_page: pageData?.per_page ?? 10,
-      to: pageData?.to ?? null,
-      total: pageData?.total ?? 0,
-      next_page_url: pageData?.next_page_url ?? null,
-      prev_page_url: pageData?.prev_page_url ?? null,
-    });
-  }
+  const createNewsMutation = useCreateNews();
+  const updateNewsMutation = useUpdateNews();
+  const deleteNewsMutation = useDeleteNews();
 
-  async function loadAllNewsForFilters() {
-    const firstResponse = await getNews(1, 10);
-    const firstPageData = firstResponse.data;
+  const loading = newsQuery.isLoading || statsQuery.isLoading;
+  const viewLoading = selectedNewsQuery.isLoading && (isViewOpen || isEditingNews);
 
-    const combined = [...(firstPageData?.data ?? [])];
-    const lastPage = firstPageData?.last_page ?? 1;
+  const newsPageData = newsQuery.data?.data;
+  const stats = statsQuery.data?.data ?? {
+    published: 0,
+    drafts: 0,
+    total_views: 0,
+  };
 
-    if (lastPage > 1) {
-      const requests: Promise<ReturnType<typeof getNews>>[] = [];
-      for (let page = 2; page <= lastPage; page += 1) {
-        requests.push(getNews(page, 10));
-      }
+  const newsItems = newsPageData?.data ?? [];
+  const backendPagination = {
+    current_page: newsPageData?.current_page ?? 1,
+    from: newsPageData?.from ?? null,
+    last_page: newsPageData?.last_page ?? 1,
+    per_page: newsPageData?.per_page ?? 10,
+    to: newsPageData?.to ?? null,
+    total: newsPageData?.total ?? 0,
+    next_page_url: newsPageData?.next_page_url ?? null,
+    prev_page_url: newsPageData?.prev_page_url ?? null,
+  };
 
-      const remainingResponses = await Promise.all(requests);
-      remainingResponses.forEach((response) => {
-        combined.push(...(response.data?.data ?? []));
-      });
-    }
+  const allNewsItems = useMemo(() => {
+    return newsItems;
+  }, [newsItems]);
 
-    setAllNewsItems(combined);
-  }
-
-  async function loadPageData(page = 1) {
-    setLoading(true);
-
-    try {
-      const [statsResponse] = await Promise.all([getNewsStats()]);
-
-      await Promise.all([loadBackendPage(page), loadAllNewsForFilters()]);
-
-      setStats(
-        statsResponse.data ?? {
-          published: 0,
-          drafts: 0,
-          total_views: 0,
-        }
-      );
-    } catch (error) {
-      console.error("Failed to load news data:", error);
-      alert("Failed to load news data.");
-      setNewsItems([]);
-      setAllNewsItems([]);
-      setStats({
-        published: 0,
-        drafts: 0,
-        total_views: 0,
-      });
-      setBackendPagination({
-        current_page: 1,
-        from: null,
-        last_page: 1,
-        per_page: 10,
-        to: null,
-        total: 0,
-        next_page_url: null,
-        prev_page_url: null,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadPageData(1);
-  }, []);
+  const selectedNews = selectedNewsQuery.data?.data ?? null;
 
   const dashboardStats = useMemo(
     () => [
@@ -345,6 +267,12 @@ export function NewsManagement() {
     });
   }
 
+  async function refreshCurrentData() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["news"] }),
+    ]);
+  }
+
   async function handleCreate(status: "public" | "draft") {
     if (!form.title.trim() || !form.content.trim()) {
       alert("Title and content are required.");
@@ -365,7 +293,7 @@ export function NewsManagement() {
         setSubmittingDraft(true);
       }
 
-      await createNews({
+      await createNewsMutation.mutateAsync({
         user_id: userId,
         title: form.title.trim(),
         content: form.content.trim(),
@@ -377,7 +305,8 @@ export function NewsManagement() {
       setIsAddingNews(false);
       setFilterStatus("all");
       setLocalFilteredPage(1);
-      await loadPageData(1);
+      setPage(1);
+      await refreshCurrentData();
     } catch (error) {
       console.error("Failed to create news:", error);
       alert("Failed to create news.");
@@ -398,21 +327,14 @@ export function NewsManagement() {
 
     try {
       setDeletingId(id);
-      await deleteNews(id);
+      await deleteNewsMutation.mutateAsync(id);
 
-      const nextPage =
-        filterStatus === "all" &&
-        newsItems.length === 1 &&
-        backendPagination.current_page > 1
-          ? backendPagination.current_page - 1
-          : backendPagination.current_page;
-
-      await loadPageData(nextPage);
-
-      if (selectedNews?.id === id) {
+      if (selectedNewsId === id) {
         setIsViewOpen(false);
-        setSelectedNews(null);
+        setSelectedNewsId(null);
       }
+
+      await refreshCurrentData();
     } catch (error) {
       console.error("Failed to delete news:", error);
       alert(
@@ -426,32 +348,19 @@ export function NewsManagement() {
   }
 
   async function handleOpenNews(item: NewsItem) {
-    try {
-      setIsViewOpen(true);
-      setViewLoading(true);
-
-      const response = await getNewsById(item.id);
-      setSelectedNews(response.data);
-    } catch (error) {
-      console.error("Failed to load full news:", error);
-      alert("Failed to load full news details.");
-      setIsViewOpen(false);
-      setSelectedNews(null);
-    } finally {
-      setViewLoading(false);
-    }
+    setSelectedNewsId(item.id);
+    setIsViewOpen(true);
   }
 
   async function handlePublish(id: number) {
     try {
       setPublishingId(id);
-      await updateNews(id, { status: "public" });
-      await loadPageData(backendPagination.current_page);
+      await updateNewsMutation.mutateAsync({
+        id,
+        payload: { status: "public" },
+      });
 
-      if (selectedNews?.id === id) {
-        const refreshed = await getNewsById(id);
-        setSelectedNews(refreshed.data);
-      }
+      await refreshCurrentData();
     } catch (error) {
       console.error("Failed to publish news:", error);
       alert("Failed to publish news.");
@@ -463,13 +372,12 @@ export function NewsManagement() {
   async function handleRestore(id: number) {
     try {
       setRestoringId(id);
-      await updateNews(id, { status: "draft" });
-      await loadPageData(backendPagination.current_page);
+      await updateNewsMutation.mutateAsync({
+        id,
+        payload: { status: "draft" },
+      });
 
-      if (selectedNews?.id === id) {
-        const refreshed = await getNewsById(id);
-        setSelectedNews(refreshed.data);
-      }
+      await refreshCurrentData();
     } catch (error) {
       console.error("Failed to restore news:", error);
       alert("Failed to restore news.");
@@ -479,9 +387,23 @@ export function NewsManagement() {
   }
 
   async function handleStartEdit(item: NewsItem) {
+    setSelectedNewsId(item.id);
+
     try {
-      const response = await getNewsById(item.id);
-      const fullNews = response.data;
+      const fullNews = selectedNewsId === item.id && selectedNews
+        ? selectedNews
+        : (await queryClient.fetchQuery({
+            queryKey: ["news", "details", item.id],
+            queryFn: async () => {
+              const mod = await import("../../services/news");
+              return mod.getNewsById(item.id);
+            },
+          }))?.data;
+
+      if (!fullNews) {
+        alert("Failed to load news for editing.");
+        return;
+      }
 
       setEditingId(fullNews.id);
       setEditForm({
@@ -507,21 +429,18 @@ export function NewsManagement() {
     try {
       setSavingEdit(true);
 
-      await updateNews(editingId, {
-        title: editForm.title.trim(),
-        content: editForm.content.trim(),
-        expires_at: toApiDateTime(editForm.expires_at) ?? null,
+      await updateNewsMutation.mutateAsync({
+        id: editingId,
+        payload: {
+          title: editForm.title.trim(),
+          content: editForm.content.trim(),
+          expires_at: toApiDateTime(editForm.expires_at) ?? null,
+        },
       });
 
       setIsEditingNews(false);
       setEditingId(null);
-
-      await loadPageData(backendPagination.current_page);
-
-      if (selectedNews?.id === editingId) {
-        const refreshed = await getNewsById(editingId);
-        setSelectedNews(refreshed.data);
-      }
+      await refreshCurrentData();
     } catch (error) {
       console.error("Failed to update news:", error);
       alert("Failed to update news.");
@@ -535,7 +454,7 @@ export function NewsManagement() {
 
     if (filterStatus === "all") {
       if (!backendPagination.prev_page_url) return;
-      await loadPageData(backendPagination.current_page - 1);
+      setPage((prev) => Math.max(1, prev - 1));
       return;
     }
 
@@ -547,7 +466,7 @@ export function NewsManagement() {
 
     if (filterStatus === "all") {
       if (!backendPagination.next_page_url) return;
-      await loadPageData(backendPagination.current_page + 1);
+      setPage((prev) => prev + 1);
       return;
     }
 
@@ -979,27 +898,27 @@ export function NewsManagement() {
 
                 <div className="flex gap-1">
                   {Array.from({ length: listMeta.last_page }, (_, i) => i + 1).map(
-                    (page) => (
+                    (pageNumber) => (
                       <button
-                        key={page}
+                        key={pageNumber}
                         onClick={async () => {
                           if (loading) return;
 
                           if (filterStatus === "all") {
-                            if (page === backendPagination.current_page) return;
-                            await loadPageData(page);
+                            if (pageNumber === backendPagination.current_page) return;
+                            setPage(pageNumber);
                             return;
                           }
 
-                          setLocalFilteredPage(page);
+                          setLocalFilteredPage(pageNumber);
                         }}
                         className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                          listMeta.current_page === page
+                          listMeta.current_page === pageNumber
                             ? "bg-[#0D7D6D] text-white"
                             : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                         }`}
                       >
-                        {page}
+                        {pageNumber}
                       </button>
                     )
                   )}
@@ -1023,7 +942,7 @@ export function NewsManagement() {
         onOpenChange={(open) => {
           setIsViewOpen(open);
           if (!open) {
-            setSelectedNews(null);
+            setSelectedNewsId(null);
           }
         }}
       >
@@ -1180,6 +1099,7 @@ export function NewsManagement() {
           setIsEditingNews(open);
           if (!open) {
             setEditingId(null);
+            setSelectedNewsId(null);
             setEditForm({
               title: "",
               content: "",

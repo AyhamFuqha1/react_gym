@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Apple,
@@ -26,21 +26,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import {
-  createGeneralNutrition,
-  deleteGeneralNutrition,
-  getGeneralNutritionCategories,
-  updateGeneralNutrition,
-  type GeneralNutritionItem,
-  type GeneralNutritionPayload,
+import type {
+  GeneralNutritionItem,
+  GeneralNutritionPayload,
 } from "../../services/generalNutrition";
 import {
   iconOptions,
   initialForm,
   mapCategories,
-  type CategoryCard,
   type FormState,
 } from "../../utils/generalNutrition";
+import { useGeneralNutritionCategories } from "../../hooks/generalNutrition/queries/useGeneralNutritionCategories";
+import { useCreateGeneralNutrition } from "../../hooks/generalNutrition/mutations/useCreateGeneralNutrition";
+import { useUpdateGeneralNutrition } from "../../hooks/generalNutrition/mutations/useUpdateGeneralNutrition";
+import { useDeleteGeneralNutrition } from "../../hooks/generalNutrition/mutations/useDeleteGeneralNutrition";
 
 export function NutritionLibrary() {
   const navigate = useNavigate();
@@ -50,12 +49,8 @@ export function NutritionLibrary() {
     ? "/dashboard/coach"
     : "/dashboard/admin";
 
-  const [categories, setCategories] = useState<CategoryCard[]>([]);
-  const [rawCategories, setRawCategories] = useState<GeneralNutritionItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -67,27 +62,19 @@ export function NutritionLibrary() {
   const [createForm, setCreateForm] = useState<FormState>(initialForm);
   const [editForm, setEditForm] = useState<FormState>(initialForm);
 
-  const loadCategories = async () => {
-    setIsLoading(true);
-    setPageError("");
+  const categoriesQuery = useGeneralNutritionCategories();
+  const createMutation = useCreateGeneralNutrition();
+  const updateMutation = useUpdateGeneralNutrition();
+  const deleteMutation = useDeleteGeneralNutrition();
 
-    try {
-      const data = await getGeneralNutritionCategories();
-      setRawCategories(data);
-      setCategories(mapCategories(data));
-    } catch (err: any) {
-      setPageError(
-        err?.response?.data?.message ||
-          "Failed to load nutrition categories."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = categoriesQuery.isLoading;
+  const rawCategories = categoriesQuery.data ?? [];
+  const categories = useMemo(() => mapCategories(rawCategories), [rawCategories]);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
 
   const totalFoods = useMemo(
     () => categories.reduce((sum, cat) => sum + cat.foodCount, 0),
@@ -127,8 +114,8 @@ export function NutritionLibrary() {
       return;
     }
 
-    setIsSubmitting(true);
     setSubmitError("");
+    setPageError("");
 
     try {
       const payload: GeneralNutritionPayload = {
@@ -137,16 +124,13 @@ export function NutritionLibrary() {
         description: createForm.description.trim(),
       };
 
-      await createGeneralNutrition(payload);
+      await createMutation.mutateAsync(payload);
       setIsCreateOpen(false);
       setCreateForm(initialForm);
-      await loadCategories();
     } catch (err: any) {
       setSubmitError(
         err?.response?.data?.message || "Failed to create category."
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -162,8 +146,8 @@ export function NutritionLibrary() {
       return;
     }
 
-    setIsSubmitting(true);
     setSubmitError("");
+    setPageError("");
 
     try {
       const payload: GeneralNutritionPayload = {
@@ -172,36 +156,33 @@ export function NutritionLibrary() {
         description: editForm.description.trim(),
       };
 
-      await updateGeneralNutrition(selectedCategory.id, payload);
+      await updateMutation.mutateAsync({
+        id: selectedCategory.id,
+        payload,
+      });
       setIsEditOpen(false);
       setSelectedCategory(null);
-      await loadCategories();
     } catch (err: any) {
       setSubmitError(
         err?.response?.data?.message || "Failed to update category."
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!selectedCategory) return;
 
-    setIsSubmitting(true);
     setSubmitError("");
+    setPageError("");
 
     try {
-      await deleteGeneralNutrition(selectedCategory.id);
+      await deleteMutation.mutateAsync(selectedCategory.id);
       setIsDeleteOpen(false);
       setSelectedCategory(null);
-      await loadCategories();
     } catch (err: any) {
       setSubmitError(
         err?.response?.data?.message || "Failed to delete category."
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -272,9 +253,9 @@ export function NutritionLibrary() {
           <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
             <Loader2 className="w-8 h-8 animate-spin text-[#14B8A6]" />
           </div>
-        ) : pageError ? (
+        ) : categoriesQuery.isError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-600">
-            {pageError}
+            {pageError || "Failed to load nutrition categories."}
           </div>
         ) : categories.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm">

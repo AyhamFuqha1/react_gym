@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -28,12 +28,9 @@ import {
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 import { getRole } from "../../services/auth";
-import {
-  createMember,
-  getMembers,
-  type MemberItem,
-  type MembersStats,
-} from "../../services/members";
+import { type MemberItem } from "../../services/members";
+import { useMembers } from "../../hooks/members/queries/useMembers";
+import { useCreateMember } from "../../hooks/members/mutations/useCreateMember";
 import {
   avatarColors,
   emptyStats,
@@ -55,40 +52,20 @@ export function MembersManagement() {
     : "/dashboard/admin";
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [members, setMembers] = useState<MemberItem[]>([]);
-  const [stats, setStats] = useState<MembersStats>(emptyStats);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [reloadFlag, setReloadFlag] = useState(0);
-
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
   });
-
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name-asc");
 
-  useEffect(() => {
-    const loadMembers = async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const { data, isLoading: loading } = useMembers();
+  const createMemberMutation = useCreateMember();
 
-        const data = await getMembers();
-        setMembers(Array.isArray(data.members) ? data.members : []);
-        setStats(data.stats || emptyStats);
-      } catch (err: any) {
-        setError(err?.response?.data?.message || "Failed to load members");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMembers();
-  }, [reloadFlag]);
+  const members: MemberItem[] = Array.isArray(data?.members) ? data.members : [];
+  const stats = data?.stats || emptyStats;
 
   const filteredMembers = useMemo(() => {
     return filterAndSortMembers(members, searchTerm, statusFilter, sortBy);
@@ -98,10 +75,9 @@ export function MembersManagement() {
     if (!canAddMember) return;
 
     try {
-      setSubmitting(true);
       setError("");
 
-      await createMember({
+      await createMemberMutation.mutateAsync({
         name: formData.name,
         email: formData.email,
         role_id: 4,
@@ -113,11 +89,8 @@ export function MembersManagement() {
       });
 
       setOpenCreateDialog(false);
-      setReloadFlag((prev) => prev + 1);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to create member");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -186,10 +159,14 @@ export function MembersManagement() {
 
                 <Button
                   onClick={handleCreateMember}
-                  disabled={submitting || !formData.name || !formData.email}
+                  disabled={
+                    createMemberMutation.isPending ||
+                    !formData.name ||
+                    !formData.email
+                  }
                   className="w-full bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md hover:shadow-[#0D7D6D]/20"
                 >
-                  {submitting ? "Creating..." : "Create Member"}
+                  {createMemberMutation.isPending ? "Creating..." : "Create Member"}
                 </Button>
               </div>
             </DialogContent>

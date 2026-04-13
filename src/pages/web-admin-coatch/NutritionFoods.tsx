@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  Plus,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  Flame,
+  Apple,
   Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -20,20 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
-import {
-  createFood,
-  deleteFood,
-  getFoods,
-  updateFood,
-  type FoodItem,
-} from "../../services/foods";
+import type { FoodPayload } from "../../services/foods";
+import { useFoods } from "../../hooks/foods/queries/useFoods";
+import { useCreateFood } from "../../hooks/foods/mutations/useCreateFood";
+import { useUpdateFood } from "../../hooks/foods/mutations/useUpdateFood";
+import { useDeleteFood } from "../../hooks/foods/mutations/useDeleteFood";
 import {
   badgeColors,
   badgeOptions,
@@ -45,9 +42,9 @@ import {
 } from "../../utils/foods";
 
 export function NutritionFoods() {
-  const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { categoryId } = useParams();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -55,44 +52,33 @@ export function NutritionFoods() {
 
   const numericCategoryId = Number(categoryId);
 
-  const [foods, setFoods] = useState<FoodItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingFoodId, setDeletingFoodId] = useState<number | null>(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [calorieFilter, setCalorieFilter] = useState("all");
+  const [pageError, setPageError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
-  const [isFoodDialogOpen, setIsFoodDialogOpen] = useState(false);
-  const [editingFood, setEditingFood] = useState<FoodItem | null>(null);
-  const [form, setForm] = useState<FoodFormState>(initialFormState);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const loadFoods = async () => {
-    try {
-      setLoading(true);
-      const response = await getFoods();
-      setFoods(response.data || []);
-    } catch (error) {
-      console.error("Failed to load foods:", error);
-      setFoods([]);
-      alert("Failed to load foods.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
+  const [createForm, setCreateForm] = useState<FoodFormState>(initialFormState);
+  const [editForm, setEditForm] = useState<FoodFormState>(initialFormState);
 
-  useEffect(() => {
-    if (!numericCategoryId || Number.isNaN(numericCategoryId)) return;
-    loadFoods();
-  }, [numericCategoryId]);
+  const foodsQuery = useFoods();
+  const createFoodMutation = useCreateFood();
+  const updateFoodMutation = useUpdateFood();
+  const deleteFoodMutation = useDeleteFood();
+
+  const isLoading = foodsQuery.isLoading;
+  const foods = foodsQuery.data?.data ?? [];
+
+  const isSubmitting =
+    createFoodMutation.isPending ||
+    updateFoodMutation.isPending ||
+    deleteFoodMutation.isPending;
 
   const categoryFoods = useMemo(() => {
-    if (!numericCategoryId || Number.isNaN(numericCategoryId)) return [];
-    return foods.filter((food) => food.category?.id === numericCategoryId);
-  }, [foods, numericCategoryId]);
-
-  const filteredFoods = useMemo(() => {
-    if (!numericCategoryId || Number.isNaN(numericCategoryId)) return [];
     return filterFoods(foods, numericCategoryId, searchQuery, calorieFilter);
   }, [foods, numericCategoryId, searchQuery, calorieFilter]);
 
@@ -100,154 +86,162 @@ export function NutritionFoods() {
     return getCategoryData(categoryFoods, categoryId);
   }, [categoryFoods, categoryId]);
 
-  const resetForm = () => {
-    setForm(initialFormState);
-    setEditingFood(null);
+  const totalFoods = categoryFoods.length;
+  const totalCalories = categoryFoods.reduce(
+    (sum, food) => sum + (Number(food.calories) || 0),
+    0
+  );
+
+  const selectedFood = useMemo(() => {
+    return foods.find((food) => food.id === selectedFoodId) || null;
+  }, [foods, selectedFoodId]);
+
+  const openCreateDialog = () => {
+    setCreateForm(initialFormState);
+    setSubmitError("");
+    setIsCreateOpen(true);
   };
 
-  const handleOpenAddFood = () => {
-    resetForm();
-    setIsFoodDialogOpen(true);
-  };
+  const openEditDialog = (foodId: number) => {
+    const found = foods.find((food) => food.id === foodId);
+    if (!found) return;
 
-  const handleOpenEditFood = (food: FoodItem) => {
-    setEditingFood(food);
-    setForm({
-      name: food.name ?? "",
-      calories: toInputValue(food.calories),
-      protein: toInputValue(food.protein),
-      carbs: toInputValue(food.carbs),
-      fat: toInputValue(food.fat),
-      serving_size: food.serving_size ?? "",
-      badge: food.badge ?? "",
-      image: food.image ?? "",
+    setSelectedFoodId(found.id);
+    setEditForm({
+      name: found.name ?? "",
+      calories: toInputValue(found.calories),
+      protein: toInputValue(found.protein),
+      carbs: toInputValue(found.carbs),
+      fat: toInputValue(found.fat),
+      serving_size: toInputValue(found.serving_size),
+      badge: found.badge ?? "",
+      image: found.image ?? "",
     });
-    setIsFoodDialogOpen(true);
+    setSubmitError("");
+    setIsEditOpen(true);
   };
 
-  const handleCloseDialog = (open: boolean) => {
-    setIsFoodDialogOpen(open);
-    if (!open) {
-      resetForm();
+  const openDeleteDialog = (foodId: number) => {
+    const found = foods.find((food) => food.id === foodId);
+    if (!found) return;
+
+    setSelectedFoodId(found.id);
+    setSubmitError("");
+    setIsDeleteOpen(true);
+  };
+
+  const buildPayload = (form: FoodFormState): FoodPayload => ({
+    general_nutrition_id: numericCategoryId,
+    name: form.name.trim(),
+    calories: Number(form.calories),
+    protein: Number(form.protein),
+    carbs: Number(form.carbs),
+    fat: Number(form.fat),
+    serving_size: form.serving_size.trim(),
+    image: form.image.trim() || null,
+  });
+
+  const validateForm = (form: FoodFormState) => {
+    if (
+      !form.name.trim() ||
+      !form.calories.trim() ||
+      !form.protein.trim() ||
+      !form.carbs.trim() ||
+      !form.fat.trim() ||
+      !form.serving_size.trim()
+    ) {
+      return "All required fields must be filled.";
     }
-  };
 
-  const handleChangeForm = (field: keyof FoodFormState, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmitFood = async () => {
     if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-      alert("Invalid category id.");
+      return "Invalid nutrition category.";
+    }
+
+    return "";
+  };
+
+  const handleCreate = async () => {
+    const validationError = validateForm(createForm);
+    if (validationError) {
+      setSubmitError(validationError);
       return;
     }
 
-    if (!form.name.trim()) {
-      alert("Food name is required.");
+    setSubmitError("");
+    setPageError("");
+
+    try {
+      await createFoodMutation.mutateAsync(buildPayload(createForm));
+      setIsCreateOpen(false);
+      setCreateForm(initialFormState);
+    } catch (err: any) {
+      setSubmitError(err?.response?.data?.message || "Failed to create food.");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedFoodId) return;
+
+    const validationError = validateForm(editForm);
+    if (validationError) {
+      setSubmitError(validationError);
       return;
     }
 
+    setSubmitError("");
+    setPageError("");
+
     try {
-      setSubmitting(true);
-
-      const payload = {
-        general_nutrition_id: numericCategoryId,
-        name: form.name.trim(),
-        calories: Number(form.calories || 0),
-        protein: Number(form.protein || 0),
-        carbs: Number(form.carbs || 0),
-        fat: Number(form.fat || 0),
-        serving_size: form.serving_size.trim(),
-        image: form.image.trim() || null,
-      };
-
-      if (editingFood) {
-        await updateFood(editingFood.id, payload);
-      } else {
-        await createFood(payload);
-      }
-
-      await loadFoods();
-      handleCloseDialog(false);
-    } catch (error: any) {
-      console.error("Failed to submit food:", error);
-      alert(
-        error?.response?.data?.message ||
-          "Failed to save food. Check console/network tab."
-      );
-    } finally {
-      setSubmitting(false);
+      await updateFoodMutation.mutateAsync({
+        foodId: selectedFoodId,
+        payload: buildPayload(editForm),
+      });
+      setIsEditOpen(false);
+      setSelectedFoodId(null);
+    } catch (err: any) {
+      setSubmitError(err?.response?.data?.message || "Failed to update food.");
     }
   };
 
-  const handleDeleteFood = async (foodId: number) => {
+  const handleDelete = async () => {
+    if (!selectedFoodId) return;
+
+    setSubmitError("");
+    setPageError("");
+
     try {
-      setDeletingFoodId(foodId);
-      await deleteFood(foodId);
-      await loadFoods();
-    } catch (error: any) {
-      console.error("Failed to delete food:", error);
-      alert(
-        error?.response?.data?.message ||
-          "Failed to delete food. Check console/network tab."
-      );
-    } finally {
-      setDeletingFoodId(null);
+      await deleteFoodMutation.mutateAsync(selectedFoodId);
+      setIsDeleteOpen(false);
+      setSelectedFoodId(null);
+    } catch (err: any) {
+      setSubmitError(err?.response?.data?.message || "Failed to delete food.");
     }
   };
-
-  if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Invalid category
-          </h2>
-          <p className="text-gray-500 mb-4">
-            The category id is missing or invalid.
-          </p>
-          <Button onClick={() => navigate(`${dashboardBase}/nutrition`)}>
-            Back to Categories
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-4">
-          <div
-            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-3xl shadow-sm`}
+        <div className="flex items-start gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(`${dashboardBase}/nutrition`)}
+            className="rounded-xl"
           >
-            {categoryData.icon}
-          </div>
+            <ArrowLeft className="mr-2 w-4 h-4" />
+            Back
+          </Button>
 
           <div>
-            <Button
-              variant="ghost"
-              onClick={() => navigate(`${dashboardBase}/nutrition`)}
-              className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 mb-2 -ml-3"
-            >
-              <ArrowLeft className="mr-2 w-4 h-4" />
-              Back to Categories
-            </Button>
-
-            <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1 capitalize">
+            <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 capitalize">
               {categoryData.name}
             </h1>
-            <p className="text-gray-500 text-sm mb-1">
-              {categoryData.description}
-            </p>
-            <p className="text-gray-500 text-sm">
-              {filteredFoods.length} foods in this category
-            </p>
+            <p className="text-gray-500 text-sm mt-1">{categoryData.description}</p>
           </div>
         </div>
 
         <Button
-          onClick={handleOpenAddFood}
+          onClick={openCreateDialog}
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
         >
           <Plus className="mr-2" size={18} />
@@ -255,142 +249,162 @@ export function NutritionFoods() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              placeholder="Search foods..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
-            />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Foods In Category</p>
+              <p className="text-2xl font-bold text-gray-900">{totalFoods}</p>
+            </div>
+            <div
+              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-2xl`}
+            >
+              {categoryData.icon}
+            </div>
           </div>
+        </div>
 
-          <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-            <Select value={calorieFilter} onValueChange={setCalorieFilter}>
-              <SelectTrigger className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Calories</SelectItem>
-                <SelectItem value="low">Low (&lt;100 cal)</SelectItem>
-                <SelectItem value="medium">Medium (100-300 cal)</SelectItem>
-                <SelectItem value="high">High (&gt;300 cal)</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Total Calories</p>
+              <p className="text-2xl font-bold text-gray-900">{totalCalories}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+              <Apple className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Category ID</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {categoryId || "-"}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+              #
+            </div>
           </div>
         </div>
       </div>
 
-      {loading ? (
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <Input
+              placeholder="Search foods by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-xl border-gray-200 bg-gray-50 h-11"
+            />
+          </div>
+
+          <Select value={calorieFilter} onValueChange={setCalorieFilter}>
+            <SelectTrigger className="w-full lg:w-[220px] rounded-xl border-gray-200 bg-gray-50 h-11">
+              <SelectValue placeholder="Calories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Calories</SelectItem>
+              <SelectItem value="low">Low (&lt; 100)</SelectItem>
+              <SelectItem value="medium">Medium (100 - 299)</SelectItem>
+              <SelectItem value="high">High (300+)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLoading ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-12 flex items-center justify-center shadow-sm">
           <Loader2 className="w-8 h-8 animate-spin text-[#14B8A6]" />
         </div>
-      ) : filteredFoods.length === 0 ? (
-        <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center shadow-sm">
-          <div className="w-20 h-20 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center mx-auto mb-4">
-            <Search className="w-10 h-10 text-gray-400" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No foods found
-          </h3>
-          <p className="text-gray-500">Try adjusting your search or filters</p>
+      ) : foodsQuery.isError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-600">
+          {pageError || "Failed to load foods."}
+        </div>
+      ) : categoryFoods.length === 0 ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm">
+          No foods found in this category.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFoods.map((food) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {categoryFoods.map((food) => (
             <div
               key={food.id}
               className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
             >
-              <div className="relative mb-5">
+              <div className="flex items-start justify-between mb-4 gap-3">
                 <div
-                  className={`w-full aspect-video rounded-xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-6xl mb-4`}
+                  className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${categoryData.gradient} flex items-center justify-center text-2xl shadow-sm`}
                 >
                   {categoryData.icon}
                 </div>
 
-                {food.badge && (
+                {food.badge ? (
                   <div
-                    className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg border ${
+                    className={`px-3 py-1 rounded-full border text-xs font-semibold ${
                       badgeColors[food.badge] ||
                       "bg-gray-50 text-gray-600 border-gray-200"
                     }`}
                   >
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                      {food.badge}
-                    </span>
+                    {food.badge}
                   </div>
-                )}
+                ) : null}
               </div>
 
-              <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-4">
+              <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-2">
                 {food.name}
               </h3>
 
-              <div className="space-y-3 mb-5">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-orange-500" />
-                    <span className="text-sm text-gray-500">Calories</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">
-                    {food.calories}
-                  </span>
+              <p className="text-gray-500 text-sm mb-4">
+                Serving Size: {food.serving_size || "N/A"}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">Calories</p>
+                  <p className="font-semibold text-gray-900">{food.calories}</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
-                    <p className="text-xs text-blue-600 mb-1">Protein</p>
-                    <p className="text-sm font-bold text-gray-900">
-                      {food.protein}g
-                    </p>
-                  </div>
-
-                  <div className="bg-amber-50 rounded-lg p-2 text-center border border-amber-100">
-                    <p className="text-xs text-amber-600 mb-1">Carbs</p>
-                    <p className="text-sm font-bold text-gray-900">
-                      {food.carbs}g
-                    </p>
-                  </div>
-
-                  <div className="bg-rose-50 rounded-lg p-2 text-center border border-rose-100">
-                    <p className="text-xs text-rose-600 mb-1">Fat</p>
-                    <p className="text-sm font-bold text-gray-900">
-                      {food.fat}g
-                    </p>
-                  </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">Protein</p>
+                  <p className="font-semibold text-gray-900">{food.protein}</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between border border-gray-100">
-                  <span className="text-sm text-gray-500">Serving Size</span>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {food.serving_size || "-"}
-                  </span>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">Carbs</p>
+                  <p className="font-semibold text-gray-900">{food.carbs}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">Fat</p>
+                  <p className="font-semibold text-gray-900">{food.fat}</p>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
-                  onClick={() => handleOpenEditFood(food)}
-                  className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-10"
+                  type="button"
+                  onClick={() => openEditDialog(food.id)}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl"
                 >
-                  <Edit className="mr-2 w-4 h-4" />
-                  Edit
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Update
                 </Button>
 
                 <Button
-                  onClick={() => handleDeleteFood(food.id)}
-                  disabled={deletingFoodId === food.id}
-                  className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl h-10 px-4"
+                  type="button"
+                  onClick={() => openDeleteDialog(food.id)}
+                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl"
                 >
-                  {deletingFoodId === food.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
                 </Button>
               </div>
             </div>
@@ -398,181 +412,363 @@ export function NutritionFoods() {
         </div>
       )}
 
-      <Dialog open={isFoodDialogOpen} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-w-2xl rounded-2xl">
+      <Dialog
+        open={isCreateOpen}
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          if (!open) {
+            setCreateForm(initialFormState);
+            setSubmitError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
-              {editingFood ? "Edit Food" : "Add New Food"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-500">
-              {editingFood
-                ? "Update food details"
-                : "Add a new food to the nutrition database"}
-            </DialogDescription>
+            <DialogTitle>Create Food</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 mt-4">
+          <div className="space-y-4">
             <div>
-              <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                Food Name
-              </Label>
+              <Label>Food Name</Label>
               <Input
-                placeholder="e.g., Greek Yogurt"
-                value={form.name}
-                onChange={(e) => handleChangeForm("name", e.target.value)}
-                className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
+                value={createForm.name}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="mt-2 rounded-xl"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Category
-                </Label>
+                <Label>Calories</Label>
                 <Input
-                  value={categoryData.name}
-                  disabled
-                  className="h-11 bg-gray-100 border-gray-200 text-gray-500 rounded-xl"
+                  type="number"
+                  value={createForm.calories}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      calories: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Badge
-                </Label>
-                <Select
-                  value={form.badge || "none"}
-                  onValueChange={(value) =>
-                    handleChangeForm("badge", value === "none" ? "" : value)
+                <Label>Serving Size</Label>
+                <Input
+                  value={createForm.serving_size}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      serving_size: e.target.value,
+                    }))
                   }
-                >
-                  <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
-                    <SelectValue placeholder="Select badge" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Badge</SelectItem>
-                    {badgeOptions.map((badge) => (
-                      <SelectItem key={badge} value={badge}>
-                        {badge}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Protein</Label>
+                <Input
+                  type="number"
+                  value={createForm.protein}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      protein: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label>Carbs</Label>
+                <Input
+                  type="number"
+                  value={createForm.carbs}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      carbs: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label>Fat</Label>
+                <Input
+                  type="number"
+                  value={createForm.fat}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      fat: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
               </div>
             </div>
 
             <div>
-              <Label className="text-gray-700 text-sm font-medium mb-3 block">
-                Nutritional Information
-              </Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <Label className="text-gray-500 text-xs mb-2 block">
-                    Calories
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.calories}
-                    onChange={(e) =>
-                      handleChangeForm("calories", e.target.value)
-                    }
-                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-gray-500 text-xs mb-2 block">
-                    Protein (g)
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.protein}
-                    onChange={(e) =>
-                      handleChangeForm("protein", e.target.value)
-                    }
-                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-gray-500 text-xs mb-2 block">
-                    Carbs (g)
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.carbs}
-                    onChange={(e) => handleChangeForm("carbs", e.target.value)}
-                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-gray-500 text-xs mb-2 block">
-                    Fat (g)
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={form.fat}
-                    onChange={(e) => handleChangeForm("fat", e.target.value)}
-                    className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl"
-                  />
-                </div>
-              </div>
+              <Label>Badge (UI only)</Label>
+              <Select
+                value={createForm.badge}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, badge: value }))
+                }
+              >
+                <SelectTrigger className="mt-2 rounded-xl">
+                  <SelectValue placeholder="Select badge" />
+                </SelectTrigger>
+                <SelectContent>
+                  {badgeOptions.map((badge) => (
+                    <SelectItem key={badge} value={badge}>
+                      {badge}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Image URL</Label>
+              <Input
+                value={createForm.image}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, image: e.target.value }))
+                }
+                className="mt-2 rounded-xl"
+              />
+            </div>
+
+            {submitError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {submitError}
+              </div>
+            )}
+
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
+            >
+              {isSubmitting ? "Creating..." : "Create Food"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isEditOpen}
+        onOpenChange={(open) => {
+          setIsEditOpen(open);
+          if (!open) {
+            setSelectedFoodId(null);
+            setSubmitError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Update Food</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Food Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="mt-2 rounded-xl"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Serving Size
-                </Label>
+                <Label>Calories</Label>
                 <Input
-                  placeholder="e.g., 170g"
-                  value={form.serving_size}
+                  type="number"
+                  value={editForm.calories}
                   onChange={(e) =>
-                    handleChangeForm("serving_size", e.target.value)
+                    setEditForm((prev) => ({
+                      ...prev,
+                      calories: e.target.value,
+                    }))
                   }
-                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
+                  className="mt-2 rounded-xl"
                 />
               </div>
 
               <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Image URL
-                </Label>
+                <Label>Serving Size</Label>
                 <Input
-                  placeholder="optional"
-                  value={form.image}
-                  onChange={(e) => handleChangeForm("image", e.target.value)}
-                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
+                  value={editForm.serving_size}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      serving_size: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Protein</Label>
+                <Input
+                  type="number"
+                  value={editForm.protein}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      protein: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label>Carbs</Label>
+                <Input
+                  type="number"
+                  value={editForm.carbs}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      carbs: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label>Fat</Label>
+                <Input
+                  type="number"
+                  value={editForm.fat}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      fat: e.target.value,
+                    }))
+                  }
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Badge (UI only)</Label>
+              <Select
+                value={editForm.badge}
+                onValueChange={(value) =>
+                  setEditForm((prev) => ({ ...prev, badge: value }))
+                }
+              >
+                <SelectTrigger className="mt-2 rounded-xl">
+                  <SelectValue placeholder="Select badge" />
+                </SelectTrigger>
+                <SelectContent>
+                  {badgeOptions.map((badge) => (
+                    <SelectItem key={badge} value={badge}>
+                      {badge}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Image URL</Label>
+              <Input
+                value={editForm.image}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, image: e.target.value }))
+                }
+                className="mt-2 rounded-xl"
+              />
+            </div>
+
+            {submitError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {submitError}
+              </div>
+            )}
+
+            <Button
+              type="button"
+              onClick={handleUpdate}
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
+            >
+              {isSubmitting ? "Updating..." : "Update Food"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isDeleteOpen}
+        onOpenChange={(open) => {
+          setIsDeleteOpen(open);
+          if (!open) {
+            setSelectedFoodId(null);
+            setSubmitError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Delete Food</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-gray-900">
+                {selectedFood?.name}
+              </span>
+              ?
+            </p>
+
+            {submitError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {submitError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
               <Button
-                onClick={() => handleCloseDialog(false)}
+                type="button"
                 variant="outline"
-                className="flex-1 h-11 rounded-xl"
+                onClick={() => setIsDeleteOpen(false)}
+                className="flex-1 rounded-xl"
               >
                 Cancel
               </Button>
 
               <Button
-                onClick={handleSubmitFood}
-                disabled={submitting}
-                className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
               >
-                {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : editingFood ? (
-                  "Update Food"
-                ) : (
-                  "Add Food"
-                )}
+                {isSubmitting ? "Deleting..." : "Delete"}
               </Button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { ResetPassword } from "../pages/login-password/ResetPassword";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { CoachLayout } from "../layouts/CoachLayout";
 import { AdminDashboard } from "../pages/web-admin-coatch/admin/AdminDashboard";
+import { CoachDashboard } from "../pages/web-admin-coatch/coach/CoachDashboard";
 import { MembersManagement } from "../pages/web-admin-coatch/MembersManagement";
 import { MemberDetails } from "../pages/web-admin-coatch/MemberDetails";
 import { ContentManagement } from "../pages/web-admin-coatch/ContentManagement";
@@ -13,19 +14,10 @@ import { AdminFeedback } from "../pages/web-admin-coatch/admin/AdminFeedback";
 import { NewsManagement } from "../pages/web-admin-coatch/NewsManagement";
 import { ExercisesPage } from "../pages/web-admin-coatch/ExercisesPage";
 import { NutritionLibrary } from "../pages/web-admin-coatch/NutritionLibrary";
-import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/subscriptions-management";
+import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/SubscriptionsManagement";
 import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
-
-function DashboardMessage({ title }: { title: string }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F7F9FB] p-8">
-      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10 text-center max-w-lg w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">{title}</h1>
-        <p className="text-gray-500">The real dashboard will be added here later.</p>
-      </div>
-    </div>
-  );
-}
+import { AIPlanRequests } from "../pages/web-admin-coatch/coach/AIPlanRequests";
+import { PendingTrainingPlans } from "../pages/web-admin-coatch/admin/PendingTrainingPlans";
 
 export const router = createBrowserRouter([
   {
@@ -88,19 +80,20 @@ export const router = createBrowserRouter([
         path: "subscriptions",
         element: <SubscriptionsManagement />,
       },
+      {
+        path: "pending-training-plans",
+        element: <PendingTrainingPlans />,
+      },
     ],
   },
-  {
-    path: "/dashboard/manager",
-    element: <DashboardMessage title="Navigated to Manager Dashboard" />,
-  },
+
   {
     path: "/dashboard/coach",
     element: <CoachLayout />,
     children: [
       {
         index: true,
-        element: <DashboardMessage title="Coach Dashboard" />,
+        element: <CoachDashboard />,
       },
       {
         path: "members",
@@ -133,6 +126,10 @@ export const router = createBrowserRouter([
       {
         path: "news",
         element: <NewsManagement />,
+      },
+      {
+        path: "ai-plan-requests",
+        element: <AIPlanRequests />,
       },
     ],
   },
