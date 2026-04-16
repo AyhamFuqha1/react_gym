@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { approveTrainingModification } from "../../../services/aiPlanRequests";
-import type { ModificationRequestItem } from "../../../utils/aiPlanRequests";
+import { approveNutritionModification } from "../../../services/aiNutritionRequests";
+import type { NutritionModificationRequestItem } from "../../../utils/aiNutritionRequests";
 
-export function useApproveTrainingModification() {
+export function useApproveNutritionModification() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: ModificationRequestItem) =>
-      approveTrainingModification(request),
+    mutationFn: (request: NutritionModificationRequestItem) =>
+      approveNutritionModification(request),
 
     onSuccess: (approvedItem, variables) => {
-      queryClient.setQueryData<ModificationRequestItem[]>(
-        ["training-modification-requests"],
+      queryClient.setQueryData<NutritionModificationRequestItem[]>(
+        ["nutrition-modification-requests"],
         (oldData) => {
           if (!oldData) return oldData;
 

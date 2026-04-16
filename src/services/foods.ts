@@ -9,6 +9,7 @@ export interface FoodCategory {
 
 export interface FoodItem {
   id: number;
+  general_nutrition_id: number;
   name: string;
   calories: string;
   protein: string;
@@ -17,7 +18,7 @@ export interface FoodItem {
   badge: string | null;
   image: string | null;
   serving_size: string | null;
-  category: FoodCategory;
+  category?: FoodCategory;
 }
 
 export interface FoodsResponse {
@@ -51,8 +52,18 @@ export interface FoodPayload {
 }
 
 export async function getFoods() {
-  const response = await api.get<FoodsResponse>("/foods");
-  return response.data;
+  const allFoods: FoodItem[] = [];
+  let nextUrl: string | null = "/foods";
+
+  while (nextUrl) {
+    const response = await api.get<FoodsResponse>(nextUrl);
+    allFoods.push(...(response.data?.data ?? []));
+
+    const next = response.data?.links?.next ?? null;
+    nextUrl = next ? next.replace(/^https?:\/\/[^/]+\/api/, "") : null;
+  }
+
+  return { data: allFoods };
 }
 
 export async function createFood(payload: FoodPayload) {

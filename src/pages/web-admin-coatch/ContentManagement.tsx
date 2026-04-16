@@ -64,6 +64,9 @@ export function ContentManagement() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] =
     useState<GeneralExerciseItem | null>(null);
@@ -92,10 +95,12 @@ export function ContentManagement() {
   function resetForm() {
     setForm(initialForm);
     setEditingCategory(null);
+    setFormError("");
   }
 
   function handleOpenCreate() {
     resetForm();
+    setFormError("");
     setIsDialogOpen(true);
   }
 
@@ -106,11 +111,12 @@ export function ContentManagement() {
       description: category.description ?? "",
       categoryType: getCategoryTypeFromName(category.name ?? ""),
     });
+    setFormError("");
     setIsDialogOpen(true);
   }
-
   function handleOpenDelete(category: GeneralExerciseItem) {
     setDeletingCategory(category);
+    setDeleteError("");
     setIsDeleteDialogOpen(true);
   }
 
@@ -127,7 +133,7 @@ export function ContentManagement() {
 
   async function handleSubmit() {
     if (!form.name.trim() || !form.description.trim()) {
-      alert("Name and description are required.");
+      setFormError("Name and description are required.");
       return;
     }
 
@@ -137,6 +143,7 @@ export function ContentManagement() {
       description: form.description.trim(),
     };
 
+    setFormError("");
     try {
       if (editingCategory) {
         await updateMutation.mutateAsync({
@@ -150,7 +157,7 @@ export function ContentManagement() {
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      alert(
+        setFormError(
         getErrorMessage(
           error,
           editingCategory
@@ -163,13 +170,13 @@ export function ContentManagement() {
 
   async function handleDelete() {
     if (!deletingCategory) return;
-
+    setDeleteError("");
     try {
       await deleteMutation.mutateAsync(deletingCategory.id);
       setIsDeleteDialogOpen(false);
       setDeletingCategory(null);
     } catch (error) {
-      alert(getErrorMessage(error, "Failed to delete category."));
+      setDeleteError(getErrorMessage(error, "Failed to delete category."));
     }
   }
 
@@ -326,143 +333,100 @@ export function ContentManagement() {
       )}
 
       <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open && !isSubmitting) resetForm();
-        }}
-      >
-        <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
-              {editingCategory ? "Edit Category" : "Add New Category"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-500">
-              {editingCategory
-                ? "Update category details"
-                : "Create a new exercise category"}
-            </DialogDescription>
-          </DialogHeader>
+      open={isDialogOpen}
+      onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) {
+          resetForm();
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-[560px] rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
+            {editingCategory ? "Edit Category" : "Create Category"}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            {editingCategory
+              ? "Update the category information below."
+              : "Create a new exercise category."}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="px-6 pb-6">
-            <div className="space-y-5 mt-4">
-              <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Category Type
-                </Label>
-                <Select
-                  value={form.categoryType}
-                  onValueChange={handleCategoryTypeChange}
-                >
-                  <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
-                    <SelectValue placeholder="Select category type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <span className="mr-2">{option.icon}</span>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="categoryType">Category Type</Label>
+            <select
+              id="categoryType"
+              value={form.categoryType}
+              onChange={(e) => {
+                const selectedType = e.target.value;
+                const config = categoryOptions.find(
+                  (option) => option.value === selectedType
+                );
 
-              <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Category Name
-                </Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder="e.g. Chest"
-                  className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
-                />
-              </div>
+                setForm((prev) => ({
+                  ...prev,
+                  categoryType: selectedType,
+                  name: config?.label ?? prev.name,
+                  description: prev.description,
+                }));
 
-              <div>
-                <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Description
-                </Label>
-                <Textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="Category description..."
-                  rows={4}
-                  className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={() => {
-                    if (!isSubmitting) {
-                      setIsDialogOpen(false);
-                      resetForm();
-                    }
-                  }}
-                  variant="outline"
-                  className="flex-1 h-11 rounded-xl"
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="flex-1 h-11 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : editingCategory ? (
-                    "Update Category"
-                  ) : (
-                    "Create Category"
-                  )}
-                </Button>
-              </div>
-            </div>
+                if (formError) setFormError("");
+              }}
+              className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
+            >
+              <option value="">Select category type</option>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog
-        open={isDeleteDialogOpen}
-        onOpenChange={(open) => {
-          setIsDeleteDialogOpen(open);
-          if (!open && !deleteMutation.isPending) setDeletingCategory(null);
-        }}
-      >
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-gray-900">Delete Category</DialogTitle>
-            <DialogDescription className="text-gray-500">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-gray-900">
-                {deletingCategory?.name}
-              </span>
-              ?
-            </DialogDescription>
-          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="name">Category Name</Label>
+            <Input
+              id="name"
+              value={form.name}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, name: e.target.value }));
+                if (formError) setFormError("");
+              }}
+              placeholder="Enter category name"
+              className="rounded-xl border-gray-200 bg-gray-50"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={form.description}
+              onChange={(e) => {
+                setForm((prev) => ({ ...prev, description: e.target.value }));
+                if (formError) setFormError("");
+              }}
+              placeholder="Enter category description"
+              rows={4}
+              className="rounded-xl border-gray-200 bg-gray-50 resize-none"
+            />
+          </div>
+
+          {formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {formError}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
-                if (!deleteMutation.isPending) {
-                  setIsDeleteDialogOpen(false);
-                  setDeletingCategory(null);
-                }
+                setIsDialogOpen(false);
+                resetForm();
               }}
               className="flex-1 rounded-xl"
             >
@@ -470,22 +434,89 @@ export function ContentManagement() {
             </Button>
 
             <Button
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl"
+              type="button"
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="flex-1 rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
-              {deleteMutation.isPending ? (
+              {createMutation.isPending || updateMutation.isPending ? (
                 <>
-                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Deleting...
+                  <Loader2 className="mr-2 animate-spin" size={16} />
+                  {editingCategory ? "Saving..." : "Creating..."}
                 </>
+              ) : editingCategory ? (
+                "Save Changes"
               ) : (
-                "Delete"
+                "Create Category"
               )}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog
+      open={isDeleteDialogOpen}
+      onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingCategory(null);
+          setDeleteError("");
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
+            Delete Category
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-gray-900">
+              {deletingCategory?.name}
+            </span>
+            ? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+
+        {deleteError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {deleteError}
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingCategory(null);
+              setDeleteError("");
+            }}
+            className="flex-1 rounded-xl"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+          >
+            {deleteMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 animate-spin" size={16} />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }

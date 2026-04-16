@@ -104,7 +104,7 @@ export function filterFoods(
   calorieFilter: string
 ) {
   return foods
-    .filter((food) => food.category?.id === numericCategoryId)
+    .filter((food) => Number(food.category?.id) === Number(numericCategoryId))
     .filter((food) => {
       const matchesSearch = food.name
         .toLowerCase()
@@ -122,6 +122,7 @@ export function filterFoods(
       return matchesSearch && matchesCalories;
     });
 }
+ 
 
 export function getCategoryData(
   categoryFoods: FoodItem[],

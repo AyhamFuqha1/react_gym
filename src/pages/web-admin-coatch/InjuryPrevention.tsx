@@ -117,6 +117,12 @@ export function InjuryPrevention() {
     notes: "",
   });
 
+  const [createError, setCreateError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+
   const {
     data: dashboardResponse,
     isLoading: loading,
@@ -154,6 +160,7 @@ export function InjuryPrevention() {
       status: "active",
       notes: "",
     });
+    setCreateError("");
   }
 
   useEffect(() => {
@@ -167,6 +174,7 @@ export function InjuryPrevention() {
       status: normalizeStatus(injury.status),
       notes: injury.notes ?? "",
     });
+    setEditError("");
   }, [injuryDetailsResponse]);
 
   const filteredItems = useMemo(() => {
@@ -212,11 +220,13 @@ export function InjuryPrevention() {
 
   async function handleCreateInjury() {
     if (!createForm.user_id.trim() || !createForm.injury_type.trim()) {
-      alert("User ID and injury type are required.");
+      setCreateError("User ID and injury type are required.");
       return;
     }
 
     try {
+      setCreateError("");
+
       await createInjuryMutation.mutateAsync({
         user_id: Number(createForm.user_id),
         injury_type: createForm.injury_type.trim(),
@@ -230,12 +240,13 @@ export function InjuryPrevention() {
       setPage(1);
     } catch (error) {
       console.error("Failed to create injury:", error);
-      alert("Failed to create injury.");
+      setCreateError("Failed to create injury.");
     }
   }
 
   function handleOpenEdit(id: number) {
     setSelectedId(id);
+    setEditError("");
     setIsEditOpen(true);
   }
 
@@ -243,11 +254,13 @@ export function InjuryPrevention() {
     if (!selectedId) return;
 
     if (!form.user_id.trim() || !form.injury_type.trim()) {
-      alert("User ID and injury type are required.");
+      setEditError("User ID and injury type are required.");
       return;
     }
 
     try {
+      setEditError("");
+
       await updateInjuryMutation.mutateAsync({
         id: selectedId,
         payload: {
@@ -263,27 +276,33 @@ export function InjuryPrevention() {
       setSelectedId(null);
     } catch (error) {
       console.error("Failed to update injury:", error);
-      alert("Failed to update injury.");
+      setEditError("Failed to update injury.");
     }
   }
 
-  async function handleDelete(id: number) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this injury record?"
-    );
+  function handleDelete(id: number) {
+    setPendingDeleteId(id);
+    setDeleteError("");
+    setConfirmDeleteOpen(true);
+  }
 
-    if (!confirmed) return;
+  async function confirmDeleteInjury() {
+    if (!pendingDeleteId) return;
 
     try {
-      setDeletingId(id);
-      await deleteInjuryMutation.mutateAsync(id);
+      setDeleteError("");
+      setDeletingId(pendingDeleteId);
+      await deleteInjuryMutation.mutateAsync(pendingDeleteId);
 
       if (items.length === 1 && page > 1) {
         setPage((prev) => prev - 1);
       }
+
+      setConfirmDeleteOpen(false);
+      setPendingDeleteId(null);
     } catch (error) {
       console.error("Failed to delete injury:", error);
-      alert("Failed to delete injury.");
+      setDeleteError("Failed to delete injury.");
     } finally {
       setDeletingId(null);
     }
@@ -313,7 +332,10 @@ export function InjuryPrevention() {
 
         <Button
           type="button"
-          onClick={() => setIsCreateOpen(true)}
+          onClick={() => {
+            setCreateError("");
+            setIsCreateOpen(true);
+          }}
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
         >
           <Plus size={16} className="mr-2" />
@@ -658,12 +680,13 @@ export function InjuryPrevention() {
               <Label>User ID</Label>
               <Input
                 value={createForm.user_id}
-                onChange={(e) =>
+                onChange={(e) => {
                   setCreateForm((prev) => ({
                     ...prev,
                     user_id: e.target.value,
-                  }))
-                }
+                  }));
+                  if (createError) setCreateError("");
+                }}
                 placeholder="User ID"
               />
             </div>
@@ -672,12 +695,13 @@ export function InjuryPrevention() {
               <Label>Injury Type</Label>
               <Input
                 value={createForm.injury_type}
-                onChange={(e) =>
+                onChange={(e) => {
                   setCreateForm((prev) => ({
                     ...prev,
                     injury_type: e.target.value,
-                  }))
-                }
+                  }));
+                  if (createError) setCreateError("");
+                }}
                 placeholder="Knee pain"
               />
             </div>
@@ -731,17 +755,24 @@ export function InjuryPrevention() {
               <Label>Notes</Label>
               <Textarea
                 value={createForm.notes}
-                onChange={(e) =>
+                onChange={(e) => {
                   setCreateForm((prev) => ({
                     ...prev,
                     notes: e.target.value,
-                  }))
-                }
+                  }));
+                  if (createError) setCreateError("");
+                }}
                 placeholder="Avoid deep squats"
                 rows={5}
                 className="rounded-xl resize-none"
               />
             </div>
+
+            {createError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {createError}
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <Button
@@ -783,6 +814,7 @@ export function InjuryPrevention() {
           setIsEditOpen(open);
           if (!open) {
             setSelectedId(null);
+            setEditError("");
           }
         }}
       >
@@ -805,9 +837,10 @@ export function InjuryPrevention() {
                 <Label>User ID</Label>
                 <Input
                   value={form.user_id}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, user_id: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, user_id: e.target.value }));
+                    if (editError) setEditError("");
+                  }}
                   placeholder="User ID"
                 />
               </div>
@@ -816,12 +849,13 @@ export function InjuryPrevention() {
                 <Label>Injury Type</Label>
                 <Input
                   value={form.injury_type}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm((prev) => ({
                       ...prev,
                       injury_type: e.target.value,
-                    }))
-                  }
+                    }));
+                    if (editError) setEditError("");
+                  }}
                   placeholder="Knee pain"
                 />
               </div>
@@ -875,14 +909,21 @@ export function InjuryPrevention() {
                 <Label>Notes</Label>
                 <Textarea
                   value={form.notes}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, notes: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, notes: e.target.value }));
+                    if (editError) setEditError("");
+                  }}
                   placeholder="Avoid deep squats"
                   rows={5}
                   className="rounded-xl resize-none"
                 />
               </div>
+
+              {editError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {editError}
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <Button
@@ -913,6 +954,67 @@ export function InjuryPrevention() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDeleteOpen}
+        onOpenChange={(open) => {
+          if (deleteInjuryMutation.isPending) return;
+          setConfirmDeleteOpen(open);
+          if (!open) {
+            setPendingDeleteId(null);
+            setDeleteError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-gray-900">
+              Delete Injury Record
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Are you sure you want to delete this injury record?
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {deleteError}
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmDeleteOpen(false);
+                setPendingDeleteId(null);
+                setDeleteError("");
+              }}
+              disabled={deleteInjuryMutation.isPending}
+              className="flex-1 rounded-xl"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={confirmDeleteInjury}
+              disabled={deleteInjuryMutation.isPending}
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteInjuryMutation.isPending ? (
+                <>
+                  <Loader2 size={14} className="mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

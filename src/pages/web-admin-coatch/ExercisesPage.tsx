@@ -54,10 +54,8 @@ export function ExercisesPage() {
 
   const numericCategoryId = Number(categoryId);
 
-  const {
-    data,
-    isLoading: loading,
-  } = useExercisesByGeneralExerciseId(numericCategoryId);
+  const { data, isLoading: loading } =
+    useExercisesByGeneralExerciseId(numericCategoryId);
 
   const createMutation = useCreateExercise();
   const updateMutation = useUpdateExercise();
@@ -66,9 +64,16 @@ export function ExercisesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
+  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(
+    null
+  );
   const [form, setForm] = useState<FormState>(initialForm);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const editExerciseQuery = useExerciseById(
     editingExerciseId ?? 0,
@@ -101,25 +106,29 @@ export function ExercisesPage() {
   function resetForm() {
     setForm(initialForm);
     setEditingExerciseId(null);
+    setFormError("");
   }
 
   function handleOpenCreate() {
     resetForm();
+    setFormError("");
     setIsDialogOpen(true);
   }
 
   async function handleOpenEdit(id: number) {
     try {
+      setFormError("");
       setEditingExerciseId(id);
     } catch (error) {
       console.error("Failed to load exercise details:", error);
-      alert(getErrorMessage(error, "Failed to load exercise details."));
+      setFormError(getErrorMessage(error, "Failed to load exercise details."));
+      setIsDialogOpen(true);
     }
   }
 
   async function handleSubmit() {
     if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-      alert("Invalid category id.");
+      setFormError("Invalid category id.");
       return;
     }
 
@@ -128,7 +137,7 @@ export function ExercisesPage() {
       !form.instructions.trim() ||
       !form.difficulty_level.trim()
     ) {
-      alert("Name, difficulty, and instructions are required.");
+      setFormError("Name, difficulty, and instructions are required.");
       return;
     }
 
@@ -142,6 +151,8 @@ export function ExercisesPage() {
     };
 
     try {
+      setFormError("");
+
       if (editingExerciseId !== null) {
         await updateMutation.mutateAsync({
           id: editingExerciseId,
@@ -156,25 +167,32 @@ export function ExercisesPage() {
       resetForm();
     } catch (error) {
       console.error("Failed to save exercise:", error);
-      alert(getErrorMessage(error, "Failed to save exercise."));
+      setFormError(getErrorMessage(error, "Failed to save exercise."));
     }
   }
 
-  async function handleDelete(id: number) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this exercise?"
-    );
-    if (!confirmed) return;
+  function handleDelete(id: number) {
+    setPendingDeleteId(id);
+    setDeleteError("");
+    setConfirmDeleteOpen(true);
+  }
+
+  async function confirmDeleteExercise() {
+    if (pendingDeleteId === null) return;
 
     try {
-      setDeletingId(id);
+      setDeleteError("");
+      setDeletingId(pendingDeleteId);
       await deleteMutation.mutateAsync({
-        id,
+        id: pendingDeleteId,
         generalExerciseId: numericCategoryId,
       });
+
+      setConfirmDeleteOpen(false);
+      setPendingDeleteId(null);
     } catch (error) {
       console.error("Failed to delete exercise:", error);
-      alert(getErrorMessage(error, "Failed to delete exercise."));
+      setDeleteError(getErrorMessage(error, "Failed to delete exercise."));
     } finally {
       setDeletingId(null);
     }
@@ -185,17 +203,11 @@ export function ExercisesPage() {
     updateMutation.isPending ||
     editExerciseQuery.isLoading;
 
-  const pageLoading =
-    loading && (!data || !Array.isArray(data.exercises));
+  const pageLoading = loading && (!data || !Array.isArray(data.exercises));
 
-  const dialogOpen =
-    isDialogOpen || editingExerciseId !== null;
+  const dialogOpen = isDialogOpen || editingExerciseId !== null;
 
-  if (
-    editExerciseQuery.data &&
-    editingExerciseId !== null &&
-    !isDialogOpen
-  ) {
+  if (editExerciseQuery.data && editingExerciseId !== null && !isDialogOpen) {
     const exercise = editExerciseQuery.data;
 
     setForm({
@@ -207,6 +219,7 @@ export function ExercisesPage() {
       instructions: exercise.instructions ?? "",
       common_mistakes: exercise.common_mistakes ?? "",
     });
+    setFormError("");
     setIsDialogOpen(true);
   }
 
@@ -337,7 +350,9 @@ export function ExercisesPage() {
                   {hasVideo ? (
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5 border border-gray-200 shadow-sm">
                       <Play className="w-3 h-3 text-gray-700 fill-gray-700" />
-                      <span className="text-gray-700 text-xs font-medium">Video</span>
+                      <span className="text-gray-700 text-xs font-medium">
+                        Video
+                      </span>
                     </div>
                   ) : null}
 
@@ -369,7 +384,8 @@ export function ExercisesPage() {
                       Common Mistakes
                     </p>
                     <p className="text-sm text-gray-500 line-clamp-2">
-                      {exercise.common_mistakes || "No common mistakes provided."}
+                      {exercise.common_mistakes ||
+                        "No common mistakes provided."}
                     </p>
                   </div>
 
@@ -446,9 +462,10 @@ export function ExercisesPage() {
                 </Label>
                 <Input
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, name: e.target.value }));
+                    if (formError) setFormError("");
+                  }}
                   placeholder="e.g. Barbell Bench Press"
                   className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
@@ -472,9 +489,10 @@ export function ExercisesPage() {
                   </Label>
                   <Select
                     value={form.difficulty_level}
-                    onValueChange={(value) =>
-                      setForm((prev) => ({ ...prev, difficulty_level: value }))
-                    }
+                    onValueChange={(value) => {
+                      setForm((prev) => ({ ...prev, difficulty_level: value }));
+                      if (formError) setFormError("");
+                    }}
                   >
                     <SelectTrigger className="h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
                       <SelectValue />
@@ -494,9 +512,10 @@ export function ExercisesPage() {
                 </Label>
                 <Input
                   value={form.video_url}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, video_url: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, video_url: e.target.value }));
+                    if (formError) setFormError("");
+                  }}
                   placeholder="https://example.com/video"
                   className="h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
                 />
@@ -508,9 +527,13 @@ export function ExercisesPage() {
                 </Label>
                 <Textarea
                   value={form.instructions}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, instructions: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      instructions: e.target.value,
+                    }));
+                    if (formError) setFormError("");
+                  }}
                   placeholder="Describe proper form and technique..."
                   rows={4}
                   className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
@@ -523,17 +546,24 @@ export function ExercisesPage() {
                 </Label>
                 <Textarea
                   value={form.common_mistakes}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm((prev) => ({
                       ...prev,
                       common_mistakes: e.target.value,
-                    }))
-                  }
+                    }));
+                    if (formError) setFormError("");
+                  }}
                   placeholder="List common mistakes to avoid..."
                   rows={3}
                   className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl resize-none"
                 />
               </div>
+
+              {formError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {formError}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4 sticky bottom-0 bg-white pb-1">
                 <Button
@@ -567,6 +597,67 @@ export function ExercisesPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDeleteOpen}
+        onOpenChange={(open) => {
+          if (deleteMutation.isPending) return;
+          setConfirmDeleteOpen(open);
+          if (!open) {
+            setPendingDeleteId(null);
+            setDeleteError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
+              Delete Exercise
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Are you sure you want to delete this exercise?
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {deleteError}
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmDeleteOpen(false);
+                setPendingDeleteId(null);
+                setDeleteError("");
+              }}
+              disabled={deleteMutation.isPending}
+              className="flex-1 rounded-xl"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={confirmDeleteExercise}
+              disabled={deleteMutation.isPending}
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

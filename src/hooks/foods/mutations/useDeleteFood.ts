@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteFood } from "../../../services/foods";
+import { deleteFood, type FoodsResponse } from "../../../services/foods";
 import { foodsKeys } from "../keys";
 
 export function useDeleteFood() {
@@ -7,10 +7,20 @@ export function useDeleteFood() {
 
   return useMutation({
     mutationFn: (foodId: number) => deleteFood(foodId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: foodsKeys.list(),
-      });
+    onSuccess: (_, deletedFoodId) => {
+      queryClient.setQueryData<FoodsResponse | { data: any[] }>(
+        foodsKeys.list(),
+        (oldData) => {
+          if (!oldData) return oldData;
+
+          const oldFoods = Array.isArray(oldData.data) ? oldData.data : [];
+
+          return {
+            ...oldData,
+            data: oldFoods.filter((food) => food.id !== deletedFoodId),
+          };
+        }
+      );
     },
   });
 }

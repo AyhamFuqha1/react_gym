@@ -1,5 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateFood, type FoodPayload } from "../../../services/foods";
+import {
+  updateFood,
+  type FoodPayload,
+  type FoodsResponse,
+} from "../../../services/foods";
 import { foodsKeys } from "../keys";
 
 export function useUpdateFood() {
@@ -13,10 +17,31 @@ export function useUpdateFood() {
       foodId: number;
       payload: FoodPayload;
     }) => updateFood(foodId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: foodsKeys.list(),
-      });
+
+    onSuccess: (updatedFood, variables) => {
+      queryClient.setQueryData<FoodsResponse | { data: any[] }>(
+        foodsKeys.list(),
+        (oldData) => {
+          if (!oldData) return oldData;
+
+          const oldFoods = Array.isArray(oldData.data) ? oldData.data : [];
+
+          return {
+            ...oldData,
+            data: oldFoods.map((food) =>
+              food.id === variables.foodId
+                ? {
+                    ...food,
+                    ...updatedFood.data,
+                    category:
+                      updatedFood.data?.category ??
+                      food.category,
+                  }
+                : food
+            ),
+          };
+        }
+      );
     },
   });
 }

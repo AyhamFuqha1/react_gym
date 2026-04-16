@@ -70,6 +70,7 @@ export function NewsManagement() {
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [restoringId, setRestoringId] = useState<number | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [page, setPage] = useState(1);
   const [localFilteredPage, setLocalFilteredPage] = useState(1);
@@ -94,16 +95,24 @@ export function NewsManagement() {
   const [isEditingNews, setIsEditingNews] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [pendingDeletePermanent, setPendingDeletePermanent] = useState(false);
+
   const newsQuery = useNews(page, 10);
   const statsQuery = useNewsStats();
-  const selectedNewsQuery = useNewsById(selectedNewsId, isViewOpen || isEditingNews);
+  const selectedNewsQuery = useNewsById(
+    selectedNewsId,
+    isViewOpen || isEditingNews
+  );
 
   const createNewsMutation = useCreateNews();
   const updateNewsMutation = useUpdateNews();
   const deleteNewsMutation = useDeleteNews();
 
   const loading = newsQuery.isLoading || statsQuery.isLoading;
-  const viewLoading = selectedNewsQuery.isLoading && (isViewOpen || isEditingNews);
+  const viewLoading =
+    selectedNewsQuery.isLoading && (isViewOpen || isEditingNews);
 
   const newsPageData = newsQuery.data?.data;
   const stats = statsQuery.data?.data ?? {
@@ -166,7 +175,9 @@ export function NewsManagement() {
       const matchesSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.author_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+        (item.author_name || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
 
@@ -268,25 +279,25 @@ export function NewsManagement() {
   }
 
   async function refreshCurrentData() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["news"] }),
-    ]);
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ["news"] })]);
   }
 
   async function handleCreate(status: "public" | "draft") {
     if (!form.title.trim() || !form.content.trim()) {
-      alert("Title and content are required.");
+      setErrorMessage("Title and content are required.");
       return;
     }
 
     const userId = getStoredUserId();
 
     if (!userId) {
-      alert("User ID not found. Please login again.");
+      setErrorMessage("User ID not found. Please login again.");
       return;
     }
 
     try {
+      setErrorMessage("");
+
       if (status === "public") {
         setSubmittingPublic(true);
       } else {
@@ -309,36 +320,41 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to create news:", error);
-      alert("Failed to create news.");
+      setErrorMessage("Failed to create news.");
     } finally {
       setSubmittingPublic(false);
       setSubmittingDraft(false);
     }
   }
 
-  async function handleDelete(id: number, isPermanent = false) {
-    const confirmed = window.confirm(
-      isPermanent
-        ? "Are you sure you want to permanently delete this news item?"
-        : "Are you sure you want to move this news item to trash?"
-    );
+  function handleDelete(id: number, isPermanent = false) {
+    setPendingDeleteId(id);
+    setPendingDeletePermanent(isPermanent);
+    setConfirmDeleteOpen(true);
+  }
 
-    if (!confirmed) return;
+  async function confirmDeleteNews() {
+    if (!pendingDeleteId) return;
 
     try {
-      setDeletingId(id);
-      await deleteNewsMutation.mutateAsync(id);
+      setErrorMessage("");
+      setDeletingId(pendingDeleteId);
+      await deleteNewsMutation.mutateAsync(pendingDeleteId);
 
-      if (selectedNewsId === id) {
+      if (selectedNewsId === pendingDeleteId) {
         setIsViewOpen(false);
         setSelectedNewsId(null);
       }
 
+      setConfirmDeleteOpen(false);
+      setPendingDeleteId(null);
+      setPendingDeletePermanent(false);
+
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to delete news:", error);
-      alert(
-        isPermanent
+      setErrorMessage(
+        pendingDeletePermanent
           ? "Failed to permanently delete news."
           : "Failed to delete news."
       );
@@ -354,6 +370,7 @@ export function NewsManagement() {
 
   async function handlePublish(id: number) {
     try {
+      setErrorMessage("");
       setPublishingId(id);
       await updateNewsMutation.mutateAsync({
         id,
@@ -363,7 +380,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to publish news:", error);
-      alert("Failed to publish news.");
+      setErrorMessage("Failed to publish news.");
     } finally {
       setPublishingId(null);
     }
@@ -371,6 +388,7 @@ export function NewsManagement() {
 
   async function handleRestore(id: number) {
     try {
+      setErrorMessage("");
       setRestoringId(id);
       await updateNewsMutation.mutateAsync({
         id,
@@ -380,7 +398,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to restore news:", error);
-      alert("Failed to restore news.");
+      setErrorMessage("Failed to restore news.");
     } finally {
       setRestoringId(null);
     }
@@ -390,18 +408,23 @@ export function NewsManagement() {
     setSelectedNewsId(item.id);
 
     try {
-      const fullNews = selectedNewsId === item.id && selectedNews
-        ? selectedNews
-        : (await queryClient.fetchQuery({
-            queryKey: ["news", "details", item.id],
-            queryFn: async () => {
-              const mod = await import("../../services/news");
-              return mod.getNewsById(item.id);
-            },
-          }))?.data;
+      setErrorMessage("");
+
+      const fullNews =
+        selectedNewsId === item.id && selectedNews
+          ? selectedNews
+          : (
+              await queryClient.fetchQuery({
+                queryKey: ["news", "details", item.id],
+                queryFn: async () => {
+                  const mod = await import("../../services/news");
+                  return mod.getNewsById(item.id);
+                },
+              })
+            )?.data;
 
       if (!fullNews) {
-        alert("Failed to load news for editing.");
+        setErrorMessage("Failed to load news for editing.");
         return;
       }
 
@@ -414,7 +437,7 @@ export function NewsManagement() {
       setIsEditingNews(true);
     } catch (error) {
       console.error("Failed to load news for edit:", error);
-      alert("Failed to load news for editing.");
+      setErrorMessage("Failed to load news for editing.");
     }
   }
 
@@ -422,11 +445,12 @@ export function NewsManagement() {
     if (!editingId) return;
 
     if (!editForm.title.trim() || !editForm.content.trim()) {
-      alert("Title and content are required.");
+      setErrorMessage("Title and content are required.");
       return;
     }
 
     try {
+      setErrorMessage("");
       setSavingEdit(true);
 
       await updateNewsMutation.mutateAsync({
@@ -443,7 +467,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to update news:", error);
-      alert("Failed to update news.");
+      setErrorMessage("Failed to update news.");
     } finally {
       setSavingEdit(false);
     }
@@ -512,7 +536,9 @@ export function NewsManagement() {
           open={isAddingNews}
           onOpenChange={(open) => {
             setIsAddingNews(open);
-            if (!open) resetForm();
+            if (!open) {
+              resetForm();
+            }
           }}
         >
           <DialogTrigger asChild>
@@ -533,6 +559,12 @@ export function NewsManagement() {
             </DialogHeader>
 
             <div className="space-y-4 mt-2">
+              {errorMessage ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {errorMessage}
+                </div>
+              ) : null}
+
               <div className="space-y-1.5">
                 <Label className="text-gray-600 text-sm">Title</Label>
                 <Input
@@ -606,6 +638,12 @@ export function NewsManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {errorMessage ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {errorMessage}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {dashboardStats.map((stat, i) => {
@@ -861,7 +899,11 @@ export function NewsManagement() {
 
                       <button
                         type="button"
-                        title={item.status === "deleted" ? "Delete Permanently" : "Delete"}
+                        title={
+                          item.status === "deleted"
+                            ? "Delete Permanently"
+                            : "Delete"
+                        }
                         onClick={() =>
                           handleDelete(item.id, item.status === "deleted")
                         }
@@ -905,7 +947,9 @@ export function NewsManagement() {
                           if (loading) return;
 
                           if (filterStatus === "all") {
-                            if (pageNumber === backendPagination.current_page) return;
+                            if (pageNumber === backendPagination.current_page) {
+                              return;
+                            }
                             setPage(pageNumber);
                             return;
                           }
@@ -938,6 +982,77 @@ export function NewsManagement() {
       </div>
 
       <Dialog
+        open={confirmDeleteOpen}
+        onOpenChange={(open) => {
+          setConfirmDeleteOpen(open);
+          if (!open) {
+            setPendingDeleteId(null);
+            setPendingDeletePermanent(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
+              {pendingDeletePermanent ? "Delete Permanently" : "Move to Trash"}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              {pendingDeletePermanent
+                ? "Are you sure you want to permanently delete this news item? This action cannot be undone."
+                : "Are you sure you want to move this news item to trash?"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {errorMessage ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {errorMessage}
+            </div>
+          ) : null}
+
+          <div className="mt-2 rounded-2xl border border-red-100 bg-red-50 p-4">
+            <p className="text-sm text-red-600">
+              {pendingDeletePermanent
+                ? "This will permanently remove the news item from the system."
+                : "You can restore this item later from Trash."}
+            </p>
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmDeleteOpen(false);
+                setPendingDeleteId(null);
+                setPendingDeletePermanent(false);
+              }}
+              className="flex-1 rounded-xl"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={confirmDeleteNews}
+              disabled={deletingId !== null}
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deletingId !== null ? (
+                <>
+                  <Loader2 size={14} className="mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : pendingDeletePermanent ? (
+                "Delete Permanently"
+              ) : (
+                "Move to Trash"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={isViewOpen}
         onOpenChange={(open) => {
           setIsViewOpen(open);
@@ -953,6 +1068,12 @@ export function NewsManagement() {
             </DialogTitle>
             <DialogDescription>Full news details</DialogDescription>
           </DialogHeader>
+
+          {errorMessage ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {errorMessage}
+            </div>
+          ) : null}
 
           {viewLoading ? (
             <div className="py-10 flex items-center justify-center text-gray-500">
@@ -1012,82 +1133,48 @@ export function NewsManagement() {
                     )}
                   </Button>
                 )}
-
-                <Button
-                  type="button"
-                  onClick={() =>
-                    handleDelete(
-                      selectedNews.id,
-                      selectedNews.status === "deleted"
-                    )
-                  }
-                  disabled={deletingId === selectedNews.id}
-                  className="h-8 rounded-lg bg-red-500 hover:bg-red-600 text-white"
-                >
-                  {deletingId === selectedNews.id ? (
-                    <>
-                      <Loader2 size={14} className="mr-2 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : selectedNews.status === "deleted" ? (
-                    "Delete Permanently"
-                  ) : (
-                    "Move to Trash"
-                  )}
-                </Button>
               </div>
 
-              <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <Calendar size={14} />
-                  <span>{selectedNews.formatted_date || "-"}</span>
-                </div>
-
-                <div className="flex items-center gap-1.5">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
                   <User size={14} />
                   <span>{selectedNews.author_name || "Unknown author"}</span>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="text-xs text-gray-400 mb-1">Published At</p>
-                  <p className="text-sm text-gray-700">
-                    {formatDisplayDateTime(selectedNews.published_at)}
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-xl bg-white border border-gray-100 p-3">
+                    <p className="text-gray-400 mb-1">Published At</p>
+                    <p className="font-medium text-gray-900">
+                      {formatDisplayDateTime(selectedNews.published_at) || "-"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-gray-100 p-3">
+                    <p className="text-gray-400 mb-1">Expiry Date</p>
+                    <p className="font-medium text-gray-900">
+                      {formatDisplayDateTime(selectedNews.expires_at) || "No expiry"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-gray-100 p-3">
+                    <p className="text-gray-400 mb-1">Remaining</p>
+                    <p className="font-medium text-gray-900">
+                      {getRemainingLabel(selectedNews)}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="text-xs text-gray-400 mb-1">Expiry Date</p>
-                  <p className="text-sm text-gray-700">
-                    {formatDisplayDateTime(selectedNews.expires_at)}
+                <div className="rounded-xl bg-white border border-gray-100 p-4">
+                  <p className="text-sm text-gray-400 mb-2">Content</p>
+                  <p className="text-sm text-gray-700 leading-7 whitespace-pre-wrap break-words">
+                    {selectedNews.content}
                   </p>
                 </div>
-
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="text-xs text-gray-400 mb-1">Remaining</p>
-                  <p className="text-sm text-gray-700">
-                    {getRemainingLabel(selectedNews)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="text-xs text-gray-400 mb-1">Current Status</p>
-                  <p className="text-sm text-gray-700 capitalize">
-                    {getDisplayStatus(selectedNews)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-sm leading-7 text-gray-700 whitespace-pre-wrap">
-                  {selectedNews.content}
-                </p>
               </div>
             </div>
           ) : (
             <div className="py-10 text-center text-sm text-gray-400">
-              No news details found.
+              News details are not available.
             </div>
           )}
         </DialogContent>
@@ -1099,12 +1186,6 @@ export function NewsManagement() {
           setIsEditingNews(open);
           if (!open) {
             setEditingId(null);
-            setSelectedNewsId(null);
-            setEditForm({
-              title: "",
-              content: "",
-              expires_at: "",
-            });
           }
         }}
       >
@@ -1114,11 +1195,17 @@ export function NewsManagement() {
               Edit News
             </DialogTitle>
             <DialogDescription>
-              Update news content and expiry date
+              Update the selected news item
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {errorMessage}
+              </div>
+            ) : null}
+
             <div className="space-y-1.5">
               <Label className="text-gray-600 text-sm">Title</Label>
               <Input
@@ -1126,6 +1213,7 @@ export function NewsManagement() {
                 onChange={(e) =>
                   setEditForm((prev) => ({ ...prev, title: e.target.value }))
                 }
+                placeholder="Eid Offer"
                 className="rounded-xl border-gray-200 bg-gray-50"
               />
             </div>
@@ -1137,6 +1225,7 @@ export function NewsManagement() {
                 onChange={(e) =>
                   setEditForm((prev) => ({ ...prev, content: e.target.value }))
                 }
+                placeholder="Write the full content here..."
                 rows={6}
                 className="rounded-xl border-gray-200 bg-gray-50 resize-none"
               />
@@ -1159,6 +1248,18 @@ export function NewsManagement() {
 
             <div className="flex gap-2">
               <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditingNews(false);
+                  setEditingId(null);
+                }}
+                className="flex-1 rounded-xl border-gray-200"
+              >
+                Cancel
+              </Button>
+
+              <Button
                 onClick={handleSaveEdit}
                 disabled={savingEdit}
                 className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md"
@@ -1171,14 +1272,6 @@ export function NewsManagement() {
                 ) : (
                   "Save Changes"
                 )}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setIsEditingNews(false)}
-                className="flex-1 rounded-xl border-gray-200 hover:border-gray-400"
-              >
-                Cancel
               </Button>
             </div>
           </div>

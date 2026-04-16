@@ -35,19 +35,27 @@ export function CoachLayout() {
     { path: "/dashboard/coach", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/dashboard/coach/members", icon: Users, label: "Members" },
     {
-      label: "AI Plan Requests",
       path: "/dashboard/coach/ai-plan-requests",
       icon: Sparkles,
+      label: "Training Requests",
+    },
+    {
+      path: "/dashboard/coach/ai-nutrition-requests",
+      icon: Apple,
+      label: "AI Nutrition Requests",
     },
     { path: "/dashboard/coach/content", icon: BookOpen, label: "Content" },
-    { path: "/dashboard/coach/nutrition", icon: Apple, label: "Nutrition Library" },
+    {
+      path: "/dashboard/coach/nutrition",
+      icon: Apple,
+      label: "Nutrition Library",
+    },
     {
       path: "/dashboard/coach/injury-prevention",
       icon: Shield,
       label: "Injury Prevention",
     },
     { path: "/dashboard/coach/news", icon: Newspaper, label: "News" },
-    
   ];
 
   const isActive = (path: string) => {

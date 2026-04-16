@@ -33,6 +33,7 @@ import {
 import { useAdminDashboard } from "../../../hooks/dashboard/queries/useAdminDashboard";
 import { useSmartSync } from "../../../hooks/dashboard/mutations/useSmartSync";
 import { useFullSync } from "../../../hooks/dashboard/mutations/useFullSync";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
 
 type PersistedSyncResult = {
   result: SyncAllResponse;
@@ -61,6 +62,7 @@ export function AdminDashboard() {
   const [syncResult, setSyncResult] = useState<SyncAllResponse | null>(null);
   const [syncError, setSyncError] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState("");
+  const [confirmFullSyncOpen, setConfirmFullSyncOpen] = useState(false);
 
   const {
     data: dashboardStats = null,
@@ -112,17 +114,16 @@ export function AdminDashboard() {
     }
   }
 
-  async function handleFullSync() {
-    const confirmed = window.confirm(
-      "This will run a full sync for all exercises and nutrition data and may consume higher API usage. Do you want to continue?"
-    );
+  function handleFullSync() {
+    setConfirmFullSyncOpen(true);
+  }
 
-    if (!confirmed) return;
-
+  async function confirmFullSync() {
     try {
       setSyncError("");
       const result = await fullSyncMutation.mutateAsync();
       saveSyncResultToStorage(result);
+      setConfirmFullSyncOpen(false);
     } catch (err) {
       console.error("Full sync failed:", err);
       setSyncError("Full sync failed.");
@@ -168,6 +169,60 @@ export function AdminDashboard() {
           </p>
         </div>
 
+        <Dialog
+          open={confirmFullSyncOpen}
+          onOpenChange={(open) => {
+            if (fullSyncMutation.isPending) return;
+            setConfirmFullSyncOpen(open);
+          }}
+        >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
+              Confirm Full Sync
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              This will run a full sync for all exercises and nutrition data and may
+              consume higher API usage.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 rounded-2xl border border-red-100 bg-red-50 p-4">
+            <p className="text-sm text-red-600">
+              Use this only when you need a complete refresh of all AI sync data.
+            </p>
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmFullSyncOpen(false)}
+              disabled={fullSyncMutation.isPending}
+              className="flex-1 rounded-xl"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={confirmFullSync}
+              disabled={fullSyncMutation.isPending}
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+            >
+              {fullSyncMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 animate-spin" size={14} />
+                  Full Sync...
+                </>
+              ) : (
+                "Run Full Sync"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+        
         <div className="flex items-center gap-2">
           <Button
             onClick={handleSmartSync}

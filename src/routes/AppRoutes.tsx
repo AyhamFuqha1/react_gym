@@ -17,8 +17,7 @@ import { NutritionLibrary } from "../pages/web-admin-coatch/NutritionLibrary";
 import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/SubscriptionsManagement";
 import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
 import { AIPlanRequests } from "../pages/web-admin-coatch/coach/AIPlanRequests";
-import { PendingTrainingPlans } from "../pages/web-admin-coatch/admin/PendingTrainingPlans";
-
+import AINutritionRequests from "../pages/web-admin-coatch/coach/AINutritionRequests";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -80,13 +79,8 @@ export const router = createBrowserRouter([
         path: "subscriptions",
         element: <SubscriptionsManagement />,
       },
-      {
-        path: "pending-training-plans",
-        element: <PendingTrainingPlans />,
-      },
     ],
   },
-
   {
     path: "/dashboard/coach",
     element: <CoachLayout />,
@@ -131,6 +125,10 @@ export const router = createBrowserRouter([
         path: "ai-plan-requests",
         element: <AIPlanRequests />,
       },
+      {
+        path: "ai-nutrition-requests",
+        element: <AINutritionRequests />,
+      }
     ],
   },
   {

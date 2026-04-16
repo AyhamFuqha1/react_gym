@@ -20,7 +20,7 @@ export async function updateModificationRequest(
     status: string;
     changes_summary: string[];
     modified_plan: {
-      plan_id: number;
+      plan_id: string | number | null;
       version: number;
       plan_data: {
         schedule: Array<{
@@ -56,7 +56,9 @@ export async function deleteModificationRequest(id: number) {
   return response.data;
 }
 
-export async function getTrainingModificationRequests(): Promise<ModificationRequestItem[]> {
+export async function getTrainingModificationRequests(): Promise<
+  ModificationRequestItem[]
+> {
   const response = await api.get("/modification-requests/training");
   return normalizeTrainingModificationRequestsResponse(response.data);
 }
@@ -64,13 +66,15 @@ export async function getTrainingModificationRequests(): Promise<ModificationReq
 export async function approveTrainingModification(request: ModificationRequestItem) {
   const payload = buildApproveModificationPayload(request);
   const response = await api.post(
-    `/modification-requests/training/${request.id}`,
+    `/modification-requests/training/${request.id}/approve-final`,
     payload
   );
   return response.data;
 }
 
-export async function searchExercises(query: string): Promise<SearchExerciseItem[]> {
+export async function searchExercises(
+  query: string
+): Promise<SearchExerciseItem[]> {
   const response = await api.post("/search-exercises", { query });
   return normalizeSearchExercisesResponse(response.data);
 }

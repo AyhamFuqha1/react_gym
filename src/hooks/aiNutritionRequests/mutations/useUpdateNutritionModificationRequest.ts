@@ -1,14 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  updateModificationRequest,
-} from "../../../services/aiPlanRequests";
-import type { ModificationRequestItem } from "../../../utils/aiPlanRequests";
+import { updateNutritionModificationRequest } from "../../../services/aiNutritionRequests";
+import type { NutritionModificationRequestItem } from "../../../utils/aiNutritionRequests";
 
-type UpdateModificationRequestPayload = Parameters<
-  typeof updateModificationRequest
+type UpdateNutritionModificationRequestPayload = Parameters<
+  typeof updateNutritionModificationRequest
 >[1];
 
-export function useUpdateModificationRequest() {
+export function useUpdateNutritionModificationRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -17,12 +15,12 @@ export function useUpdateModificationRequest() {
       payload,
     }: {
       id: number;
-      payload: UpdateModificationRequestPayload;
-    }) => updateModificationRequest(id, payload),
+      payload: UpdateNutritionModificationRequestPayload;
+    }) => updateNutritionModificationRequest(id, payload),
 
     onSuccess: (updatedItem, variables) => {
-      queryClient.setQueryData<ModificationRequestItem[]>(
-        ["training-modification-requests"],
+      queryClient.setQueryData<NutritionModificationRequestItem[]>(
+        ["nutrition-modification-requests"],
         (oldData) => {
           if (!oldData) return oldData;
 

@@ -10,9 +10,27 @@ export function useCreateNews() {
 
   return useMutation({
     mutationFn: (payload: CreateNewsPayload) => createNews(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: newsKeys.all,
+
+    onSuccess: (createdNews) => {
+      const newItem = createdNews?.data ?? createdNews;
+
+      queryClient.setQueryData<any>(newsKeys.all, (oldData: any) => {
+        if (!oldData) {
+          return { data: [newItem] };
+        }
+
+        if (Array.isArray(oldData)) {
+          return [newItem, ...oldData];
+        }
+
+        if (Array.isArray(oldData?.data)) {
+          return {
+            ...oldData,
+            data: [newItem, ...oldData.data],
+          };
+        }
+
+        return oldData;
       });
     },
   });

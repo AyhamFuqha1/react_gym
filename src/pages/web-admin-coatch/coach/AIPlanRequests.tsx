@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Search,
   ChevronDown,
@@ -17,10 +17,11 @@ import {
   RefreshCw,
   Send,
   Loader2,
+  Plus,
   Mail,
   ShieldAlert,
   HeartPulse,
-  Plus,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -28,14 +29,12 @@ import type {
   ModificationRequestItem,
   SearchExerciseItem,
 } from "../../../utils/aiPlanRequests";
-import {
-  getModificationRequestById,
-  searchExercises,
-} from "../../../services/aiPlanRequests";
+import { getModificationRequestById, searchExercises } from "../../../services/aiPlanRequests";
 import { useTrainingModificationRequests } from "../../../hooks/aiPlanRequests/queries/useTrainingModificationRequests";
 import { useApproveTrainingModification } from "../../../hooks/aiPlanRequests/mutations/useApproveTrainingModification";
 import { useUpdateModificationRequest } from "../../../hooks/aiPlanRequests/mutations/useUpdateModificationRequest";
 import { useDeleteModificationRequest } from "../../../hooks/aiPlanRequests/mutations/useDeleteModificationRequest";
+import { useUserGoals } from "../../../hooks/aiPlanRequests/queries/useUserGoals";
 
 const statusConfig = {
   pending: {
@@ -43,6 +42,12 @@ const statusConfig = {
     text: "text-amber-700",
     border: "border-amber-200",
     label: "Pending Review",
+  },
+  done: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
+    label: "Completed",
   },
   approved: {
     bg: "bg-emerald-50",
@@ -55,6 +60,21 @@ const statusConfig = {
     text: "text-blue-700",
     border: "border-blue-200",
     label: "Edited",
+  },
+};
+
+const sourceConfig = {
+  generated: {
+    label: "Generated",
+    bg: "bg-cyan-50",
+    text: "text-cyan-700",
+    border: "border-cyan-200",
+  },
+  modification: {
+    label: "Modification",
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    border: "border-violet-200",
   },
 };
 
@@ -89,14 +109,16 @@ type DetailApiDay = {
 type DetailApiResponse = {
   id: number;
   user_id: number;
-  program_version_id: number;
+  program_version_id: number | null;
   type: string;
   status: string;
+  source?: string;
   changes_summary: string[];
   modified_plan: {
-    plan_id: number;
+    plan_id: string | number | null;
     version: number;
     plan_data: {
+      duration_weeks?: number;
       schedule: DetailApiDay[];
     };
   } | null;
@@ -121,6 +143,21 @@ type DetailApiResponse = {
     level: string;
   };
 };
+
+type EnrichedModificationRequestItem = ModificationRequestItem & {
+  displayGoal: string;
+  displayTargetWeight: string;
+};
+
+function toTitleCase(value: string) {
+  if (!value) return "";
+  return value
+    .replace(/[_-]/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
 
 function guessDayTitle(
   day: number,
@@ -162,7 +199,7 @@ export function AIPlanRequests() {
     null
   );
   const [toast, setToast] = useState<ToastState>(null);
-
+  const { data: userGoals = [] } = useUserGoals();
   const [loadingDetailsId, setLoadingDetailsId] = useState<number | null>(null);
 
   const [modificationDetailsById, setModificationDetailsById] = useState<
@@ -183,7 +220,7 @@ export function AIPlanRequests() {
     data: serverRequests = [],
     isLoading,
     isFetching,
-    refetch,
+    refetch: refetchModificationRequests,
   } = useTrainingModificationRequests();
 
   const approveMutation = useApproveTrainingModification();
@@ -200,39 +237,75 @@ export function AIPlanRequests() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  const goalsMap = useMemo(() => {
+    const map = new Map<number, { goal: string; targetWeight: string }>();
+
+    userGoals.forEach((item) => {
+      map.set(Number(item.user_id), {
+        goal: toTitleCase(String(item.goal_type ?? "")),
+        targetWeight: String(item.target_weight ?? ""),
+      });
+    });
+
+    return map;
+  }, [userGoals]);
+
+  const enrichedRequests = useMemo<EnrichedModificationRequestItem[]>(() => {
+    return modificationRequests.map((request) => {
+      const goalInfo = goalsMap.get(Number(request.userId ?? 0));
+
+      return {
+        ...request,
+        displayGoal: goalInfo?.goal ?? "No goal",
+        displayTargetWeight: goalInfo?.targetWeight ?? "",
+      };
+    });
+  }, [modificationRequests, goalsMap]);
+
   const filteredRequests = useMemo(() => {
-    return modificationRequests.filter((request) => {
+    return enrichedRequests.filter((request) => {
       const q = searchQuery.trim().toLowerCase();
       if (!q) return true;
 
       return (
         request.userName.toLowerCase().includes(q) ||
         String(request.id).includes(q) ||
-        String(request.planId).includes(q)
+        request.planId.toLowerCase().includes(q) ||
+        request.displayGoal.toLowerCase().includes(q) ||
+        request.source.toLowerCase().includes(q)
       );
     });
-  }, [modificationRequests, searchQuery]);
+  }, [enrichedRequests, searchQuery]);
 
-  const totalRequests = modificationRequests.length;
-  const pendingReviewCount = modificationRequests.filter(
+  const totalRequests = enrichedRequests.length;
+  const pendingReviewCount = enrichedRequests.filter(
     (item) => item.status === "pending"
+  ).length;
+  const generatedCount = enrichedRequests.filter(
+    (item) => item.source === "generated"
+  ).length;
+  const modificationCount = enrichedRequests.filter(
+    (item) => item.source === "modification"
   ).length;
 
   function toggleExpand(id: number) {
     setExpandedRequest((current) => (current === id ? null : id));
   }
 
+  async function refreshAll() {
+    await refetchModificationRequests();
+  }
+
   async function handleApprove(requestId: number) {
     const request = modificationRequests.find((item) => item.id === requestId);
     if (!request) return;
 
-    const canApprove =
-      request.modifiedPlan.schedule.length > 0 && request.planId > 0;
+    const canApprove = request.modifiedPlan.schedule.length > 0;
 
     if (!canApprove) {
       setToast({
         type: "error",
-        message: "This modification request does not have a modified plan ready yet.",
+        message: "This request does not have a valid plan preview yet.",
       });
       return;
     }
@@ -241,9 +314,9 @@ export function AIPlanRequests() {
       await approveMutation.mutateAsync(request);
       setToast({
         type: "success",
-        message: "Modification request approved successfully.",
+        message: "Plan approved and saved successfully.",
       });
-      await refetch();
+      await refreshAll();
       if (expandedRequest === requestId) {
         setExpandedRequest(null);
       }
@@ -251,7 +324,7 @@ export function AIPlanRequests() {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to approve modification request.",
+        message: "Failed to approve and save the plan.",
       });
     }
   }
@@ -294,19 +367,22 @@ export function AIPlanRequests() {
         current.map((item) => {
           if (item.id !== requestId) return item;
 
+          const rawPlanId =
+            full?.modified_plan?.plan_id ?? full?.program_version_id ?? item.planId;
+
           return {
             ...item,
-            planId: Number(
-              full?.modified_plan?.plan_id ?? full?.program_version_id ?? item.planId
-            ),
+            planId: rawPlanId != null ? String(rawPlanId) : "",
             version: Number(
               full?.modified_plan?.version ?? full?.program_version_id ?? item.version
             ),
             requestDate: full?.created_at ?? item.requestDate,
             status: String(full?.status ?? item.status).toLowerCase() as
               | "pending"
+              | "done"
               | "edited"
               | "approved",
+            source: String(full?.source ?? item.source),
             userId: Number(full?.user_id ?? item.userId ?? 0),
             userName: full?.user?.name ? String(full.user.name) : item.userName,
             userRequest:
@@ -319,9 +395,11 @@ export function AIPlanRequests() {
               : item.recommendations,
             modifiedPlan: {
               duration:
-                schedule.length > 0
-                  ? `${schedule.length} day${schedule.length > 1 ? "s" : ""}`
-                  : item.modifiedPlan.duration,
+                full?.modified_plan?.plan_data?.duration_weeks != null
+                  ? `${full.modified_plan.plan_data.duration_weeks} weeks`
+                  : schedule.length > 0
+                    ? `${schedule.length} days`
+                    : item.modifiedPlan.duration,
               schedule,
             },
           };
@@ -333,7 +411,7 @@ export function AIPlanRequests() {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to load modification request details.",
+        message: "Failed to load request details.",
       });
     } finally {
       setLoadingDetailsId(null);
@@ -502,7 +580,7 @@ export function AIPlanRequests() {
           status: request.status,
           changes_summary: request.changesSummary,
           modified_plan: {
-            plan_id: request.planId,
+            plan_id: request.planId || null,
             version: request.version,
             plan_data: {
               schedule: request.modifiedPlan.schedule.map((day) => ({
@@ -527,8 +605,7 @@ export function AIPlanRequests() {
             liked_exercises:
               modificationDetailsById[requestId]?.user_feedback?.liked_exercises ?? [],
             disliked_exercises:
-              modificationDetailsById[requestId]?.user_feedback?.disliked_exercises ??
-              [],
+              modificationDetailsById[requestId]?.user_feedback?.disliked_exercises ?? [],
             modification_request: request.userRequest,
           },
         },
@@ -537,14 +614,14 @@ export function AIPlanRequests() {
       setEditingModificationId(null);
       setToast({
         type: "success",
-        message: "Modification request updated successfully.",
+        message: "Request updated successfully.",
       });
-      await refetch();
+      await refetchModificationRequests();
     } catch (error) {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to update modification request.",
+        message: "Failed to update request.",
       });
     }
   }
@@ -554,17 +631,17 @@ export function AIPlanRequests() {
       await deleteMutation.mutateAsync(requestId);
       setToast({
         type: "success",
-        message: "Modification request deleted successfully.",
+        message: "Request deleted successfully.",
       });
       if (expandedRequest === requestId) {
         setExpandedRequest(null);
       }
-      await refetch();
+      await refetchModificationRequests();
     } catch (error) {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to delete modification request.",
+        message: "Failed to delete request.",
       });
     }
   }
@@ -592,16 +669,16 @@ export function AIPlanRequests() {
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827] break-words">
-                  AI Requests
+                  Training Plan Requests
                 </h1>
               </div>
               <p className="text-gray-500 text-base lg:text-lg">
-                Review AI modification requests and approve updated plans
+                Review AI-generated and modified training plans
               </p>
             </div>
 
             <Button
-              onClick={() => refetch()}
+              onClick={() => refreshAll()}
               disabled={isFetching}
               className="h-11 px-5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700"
             >
@@ -614,11 +691,11 @@ export function AIPlanRequests() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <StatCard
               title="Total Requests"
               value={totalRequests}
-              icon={<RefreshCw className="w-6 h-6 text-blue-600" />}
+              icon={<Sparkles className="w-6 h-6 text-blue-600" />}
             />
             <StatCard
               title="Pending Review"
@@ -626,12 +703,24 @@ export function AIPlanRequests() {
               valueClassName="text-amber-600"
               icon={<Clock className="w-6 h-6 text-amber-600" />}
             />
+            <StatCard
+              title="Generated Plans"
+              value={generatedCount}
+              valueClassName="text-[#111827]"
+              icon={<GitBranch className="w-6 h-6 text-cyan-600" />}
+            />
+            <StatCard
+              title="Modification Requests"
+              value={modificationCount}
+              valueClassName="text-[#111827]"
+              icon={<RefreshCw className="w-6 h-6 text-violet-600" />}
+            />
           </div>
 
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search by member name, plan ID, or request ID..."
+              placeholder="Search by member name, request ID, plan reference, goal, or type..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-14 bg-white border-gray-200 text-[#111827] placeholder:text-gray-400 rounded-xl text-base"
@@ -642,17 +731,21 @@ export function AIPlanRequests() {
         {isLoading ? (
           <div className="py-20 flex items-center justify-center text-gray-600">
             <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-            Loading AI requests...
+            Loading plan requests...
           </div>
         ) : (
           <div className="space-y-6">
             {filteredRequests.map((modRequest) => {
               const status =
-                statusConfig[modRequest.status] ?? statusConfig.pending;
+                statusConfig[modRequest.status as keyof typeof statusConfig] ??
+                statusConfig.pending;
+
+              const source =
+                sourceConfig[modRequest.source as keyof typeof sourceConfig] ??
+                sourceConfig.modification;
+
               const isExpanded = expandedRequest === modRequest.id;
-              const hasModifiedPlan =
-                modRequest.modifiedPlan.schedule.length > 0 &&
-                modRequest.planId > 0;
+              const hasModifiedPlan = modRequest.modifiedPlan.schedule.length > 0;
               const isEditing = editingModificationId === modRequest.id;
               const detail = modificationDetailsById[modRequest.id];
               const feedback = detail?.user_feedback;
@@ -674,13 +767,20 @@ export function AIPlanRequests() {
                             <h3 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827] break-words">
                               {modRequest.userName}
                             </h3>
+
                             <div
                               className={`px-3 py-1 rounded-lg border ${status.bg} ${status.border}`}
                             >
-                              <span
-                                className={`text-sm font-bold ${status.text}`}
-                              >
+                              <span className={`text-sm font-bold ${status.text}`}>
                                 {status.label}
+                              </span>
+                            </div>
+
+                            <div
+                              className={`px-3 py-1 rounded-lg border ${source.bg} ${source.border}`}
+                            >
+                              <span className={`text-sm font-bold ${source.text}`}>
+                                {source.label}
                               </span>
                             </div>
                           </div>
@@ -693,23 +793,42 @@ export function AIPlanRequests() {
                                 {modRequest.id}
                               </strong>
                             </span>
+
                             <span className="flex items-center gap-1.5">
-                              Plan ID:{" "}
+                              Plan Ref:{" "}
                               <strong className="text-[#111827]">
-                                {modRequest.planId}
+                                {modRequest.planId || "Generated request"}
                               </strong>
                             </span>
+
                             <span className="flex items-center gap-1.5">
                               Version:{" "}
                               <strong className="text-[#111827]">
                                 {modRequest.version}
                               </strong>
                             </span>
+
+                            <span className="flex items-center gap-1.5">
+                              Goal:{" "}
+                              <strong className="text-[#111827]">
+                                {modRequest.displayGoal}
+                              </strong>
+                            </span>
+
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-4 h-4" />
                               {formatRequestDate(modRequest.requestDate)}
                             </span>
                           </div>
+
+                          {modRequest.displayTargetWeight ? (
+                            <div className="mt-2 text-sm text-gray-500">
+                              Target Weight:{" "}
+                              <strong className="text-[#111827]">
+                                {modRequest.displayTargetWeight}
+                              </strong>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
@@ -778,13 +897,39 @@ export function AIPlanRequests() {
                             </div>
 
                             <div className="flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />
+                              <div>
+                                <span className="font-semibold text-[#111827]">
+                                  Goal:
+                                </span>{" "}
+                                {modRequest.displayGoal}
+                              </div>
+                            </div>
+
+                            {modRequest.displayTargetWeight ? (
+                              <div className="flex items-start gap-2">
+                                <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
+                                <div>
+                                  <span className="font-semibold text-[#111827]">
+                                    Target Weight:
+                                  </span>{" "}
+                                  {modRequest.displayTargetWeight}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div className="flex items-start gap-2">
                               <Dumbbell className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
                                   Program:
                                 </span>{" "}
                                 {detail?.program_version?.name ??
-                                  `Plan ${modRequest.planId}`}
+                                  (modRequest.source === "generated"
+                                    ? "Generated training plan"
+                                    : modRequest.planId
+                                      ? `Plan ${modRequest.planId}`
+                                      : "N/A")}
                               </div>
                             </div>
 
@@ -1165,13 +1310,12 @@ export function AIPlanRequests() {
                       ) : (
                         <SectionCard
                           icon={<AlertCircle className="w-5 h-5 text-amber-600" />}
-                          title="Modified Plan Preview"
+                          title="Updated Plan Preview"
                           titleClassName="text-amber-700"
                           wrapperClassName="bg-amber-50 border-amber-200"
                         >
                           <p className="text-sm text-amber-700">
-                            This request does not have a modified plan yet, so it
-                            cannot be approved from this screen.
+                            This request does not have a valid plan preview yet.
                           </p>
                         </SectionCard>
                       )}
@@ -1229,9 +1373,7 @@ export function AIPlanRequests() {
 
                           <Button
                             onClick={() => handleApprove(modRequest.id)}
-                            disabled={
-                              !hasModifiedPlan || approveMutation.isPending
-                            }
+                            disabled={!hasModifiedPlan || approveMutation.isPending}
                             className="flex-1 h-14 bg-[#0D7D6D] hover:bg-[#0b6b5e] text-white text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {approveMutation.isPending ? (
@@ -1239,7 +1381,7 @@ export function AIPlanRequests() {
                             ) : (
                               <Check className="mr-2 w-5 h-5" />
                             )}
-                            Approve
+                            Approve & Save Plan
                           </Button>
 
                           <Button
@@ -1278,22 +1420,8 @@ export function AIPlanRequests() {
             {filteredRequests.length === 0 ? (
               <EmptyState
                 icon={<RefreshCw className="w-10 h-10 text-gray-400" />}
-                title="No AI requests found"
-                description="There are no modification requests right now."
-                action={
-                  <Button
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="mt-6 h-11 px-5 bg-[#0D7D6D] hover:bg-[#0b6b5e] text-white"
-                  >
-                    {isFetching ? (
-                      <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 w-4 h-4" />
-                    )}
-                    Refresh Requests
-                  </Button>
-                }
+                title="No training plan requests found"
+                description="There are no generated or modification training requests right now."
               />
             ) : null}
           </div>
@@ -1311,7 +1439,7 @@ function StatCard({
 }: {
   title: string;
   value: number;
-  icon: React.ReactNode;
+  icon: ReactNode;
   valueClassName?: string;
 }) {
   return (
@@ -1333,12 +1461,10 @@ function EmptyState({
   icon,
   title,
   description,
-  action,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
-  action?: React.ReactNode;
 }) {
   return (
     <div className="text-center py-20">
@@ -1347,7 +1473,6 @@ function EmptyState({
       </div>
       <h3 className="text-xl font-semibold text-[#111827] mb-2">{title}</h3>
       <p className="text-gray-500">{description}</p>
-      {action}
     </div>
   );
 }
@@ -1359,9 +1484,9 @@ function SectionCard({
   titleClassName,
   wrapperClassName = "bg-white border-gray-200",
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   titleClassName: string;
   wrapperClassName?: string;
 }) {

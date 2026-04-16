@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   updateGeneralNutrition,
+  type GeneralNutritionItem,
   type GeneralNutritionPayload,
 } from "../../../services/generalNutrition";
 import { generalNutritionKeys } from "../keys";
@@ -16,13 +17,22 @@ export function useUpdateGeneralNutrition() {
       id: number;
       payload: GeneralNutritionPayload;
     }) => updateGeneralNutrition(id, payload),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: generalNutritionKeys.list(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: generalNutritionKeys.detail(variables.id),
-      });
+
+    onSuccess: (updatedCategory, variables) => {
+      queryClient.setQueryData<GeneralNutritionItem[]>(
+        generalNutritionKeys.list(),
+        (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.map((item) =>
+            item.id === variables.id ? updatedCategory : item
+          );
+        }
+      );
+
+      queryClient.setQueryData<GeneralNutritionItem>(
+        generalNutritionKeys.detail(variables.id),
+        updatedCategory
+      );
     },
   });
 }
