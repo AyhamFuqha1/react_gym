@@ -1,22 +1,39 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  approveNutritionModification,
-  searchFoods,
-  type ApproveNutritionPayload,
-} from "../../../services/aiNutritionRequests";
-import { normalizeSearchFoodsResponse } from "../../../utils/aiNutritionRequests";
+import api from "../../../services/api";
+import { searchFoods } from "../../../services/aiNutritionRequests";
+import type {
+  NutritionModificationRequestItem,
+  SearchFoodsResultItem,
+} from "../../../utils/aiNutritionRequests";
 import { aiNutritionRequestsKeys } from "../queries/useAINutritionRequestsQueries";
 
+type ApproveNutritionPayload = {
+  plan_id?: number;
+  daily_meals: Array<{
+    meal: string;
+    items: Array<{
+      food_id: number;
+      name: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      quantity: number;
+    }>;
+  }>;
+};
+
 export function useSearchFoodsMutation() {
-  return useMutation({
+  return useMutation<SearchFoodsResultItem[], Error, string>({
     mutationFn: async (query: string) => {
-      const response = await searchFoods(query);
-      return normalizeSearchFoodsResponse(response);
+      return searchFoods(query);
     },
   });
 }
 
-export function useApproveNutritionModificationMutation(requestId: number | null) {
+export function useApproveNutritionModificationMutation(
+  requestId: number | null
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -25,16 +42,26 @@ export function useApproveNutritionModificationMutation(requestId: number | null
         throw new Error("Missing request id.");
       }
 
-      return approveNutritionModification(requestId, payload);
+      const response = await api.post(
+        `/modification-requests/nutrition/${requestId}`,
+        payload
+      );
+
+      return response.data;
     },
+
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: aiNutritionRequestsKeys.lists(),
         }),
-        queryClient.invalidateQueries({
-          queryKey: aiNutritionRequestsKeys.detail(requestId),
-        }),
+        ...(requestId
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: aiNutritionRequestsKeys.detail(requestId),
+              }),
+            ]
+          : []),
       ]);
     },
   });
