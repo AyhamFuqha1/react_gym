@@ -79,6 +79,7 @@ export function NewsManagement() {
     title: "",
     content: "",
     expires_at: "",
+    emails: "",
   });
 
   const [editForm, setEditForm] = useState({
@@ -275,6 +276,7 @@ export function NewsManagement() {
       title: "",
       content: "",
       expires_at: "",
+      emails: "",
     });
   }
 
@@ -304,12 +306,18 @@ export function NewsManagement() {
         setSubmittingDraft(true);
       }
 
+      const emails = form.emails
+      .split("\n")
+      .map((email) => email.trim())
+      .filter(Boolean);
+
       await createNewsMutation.mutateAsync({
         user_id: userId,
         title: form.title.trim(),
         content: form.content.trim(),
         status,
         expires_at: toApiDateTime(form.expires_at) ?? null,
+        emails,
       });
 
       resetForm();
@@ -600,6 +608,22 @@ export function NewsManagement() {
                   }
                   className="rounded-xl border-gray-200 bg-gray-50"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-gray-600 text-sm">Emails (optional)</Label>
+                <Textarea
+                  value={form.emails}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, emails: e.target.value }))
+                  }
+                  placeholder={"email1@example.com\nemail2@example.com"}
+                  rows={4}
+                  className="rounded-xl border-gray-200 bg-gray-50 resize-none"
+                />
+                <p className="text-xs text-gray-400">
+                  One email per line. Leave empty to create news without sending emails.
+                </p>
               </div>
 
               <div className="flex gap-2">

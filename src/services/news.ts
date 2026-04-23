@@ -52,6 +52,7 @@ export interface CreateNewsPayload {
   content: string;
   status: "public" | "draft";
   expires_at?: string | null;
+  emails?: string[];
 }
 
 export interface SingleNewsResponse {
