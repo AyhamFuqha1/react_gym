@@ -32,7 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import type { InjuryDashboardItem } from "../../services/injuries";
+import type {
+  InjuryDashboardItem,
+  InjurySeverity,
+  InjuryStatus,
+} from "../../services/injuries";
 import {
   getInitials,
   getSafeArray,
@@ -45,8 +49,8 @@ import { useCreateInjury } from "../../hooks/injuries/mutations/useCreateInjury"
 import { useUpdateInjury } from "../../hooks/injuries/mutations/useUpdateInjury";
 import { useDeleteInjury } from "../../hooks/injuries/mutations/useDeleteInjury";
 
-type StatusFilter = "all" | "active" | "inactive";
-type SeverityFilter = "all" | "low" | "medium" | "high";
+type StatusFilter = "all" | InjuryStatus;
+type SeverityFilter = "all" | InjurySeverity;
 
 const severityStyles: Record<
   string,
@@ -56,17 +60,17 @@ const severityStyles: Record<
     chipText: string;
   }
 > = {
-  high: {
+  severe: {
     card: "bg-red-50 border-red-200",
     chip: "bg-red-100",
     chipText: "text-red-700",
   },
-  medium: {
+  moderate: {
     card: "bg-orange-50 border-orange-200",
     chip: "bg-orange-100",
     chipText: "text-orange-700",
   },
-  low: {
+  mild: {
     card: "bg-amber-50 border-amber-200",
     chip: "bg-amber-100",
     chipText: "text-amber-700",
@@ -84,11 +88,20 @@ const statusStyles: Record<
     badge: "bg-red-50 text-red-600 border-red-100",
     label: "Active",
   },
-  inactive: {
+  recovered: {
     badge: "bg-gray-100 text-gray-600 border-gray-200",
-    label: "Inactive",
+    label: "Recovered",
   },
 };
+
+function formatLabel(value: unknown, fallback = "Unknown") {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+
+  return raw
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 export function InjuryPrevention() {
   const [page, setPage] = useState(1);
@@ -104,16 +117,16 @@ export function InjuryPrevention() {
   const [form, setForm] = useState({
     user_id: "",
     injury_type: "",
-    severity: "low" as "low" | "medium" | "high",
-    status: "active" as "active" | "inactive",
+    severity: "mild" as InjurySeverity,
+    status: "active" as InjuryStatus,
     notes: "",
   });
 
   const [createForm, setCreateForm] = useState({
     user_id: "",
     injury_type: "",
-    severity: "low" as "low" | "medium" | "high",
-    status: "active" as "active" | "inactive",
+    severity: "mild" as InjurySeverity,
+    status: "active" as InjuryStatus,
     notes: "",
   });
 
@@ -156,7 +169,7 @@ export function InjuryPrevention() {
     setCreateForm({
       user_id: "",
       injury_type: "",
-      severity: "low",
+      severity: "mild",
       status: "active",
       notes: "",
     });
@@ -197,19 +210,19 @@ export function InjuryPrevention() {
       (item) => normalizeStatus(item.status) === "active"
     ).length;
 
-    const inactiveCases = items.filter(
-      (item) => normalizeStatus(item.status) === "inactive"
+    const recoveredCases = items.filter(
+      (item) => normalizeStatus(item.status) === "recovered"
     ).length;
 
-    const highSeverityCases = items.filter(
-      (item) => normalizeSeverity(item.severity) === "high"
+    const severeSeverityCases = items.filter(
+      (item) => normalizeSeverity(item.severity) === "severe"
     ).length;
 
     return {
       totalCases: pagination.total,
       activeCases,
-      inactiveCases,
-      highSeverityCases,
+      recoveredCases,
+      severeSeverityCases,
     };
   }, [items, pagination.total]);
 
@@ -230,8 +243,8 @@ export function InjuryPrevention() {
       await createInjuryMutation.mutateAsync({
         user_id: Number(createForm.user_id),
         injury_type: createForm.injury_type.trim(),
-        severity: createForm.severity,
-        status: createForm.status,
+        severity: normalizeSeverity(createForm.severity),
+        status: normalizeStatus(createForm.status),
         notes: createForm.notes.trim(),
       });
 
@@ -266,8 +279,8 @@ export function InjuryPrevention() {
         payload: {
           user_id: Number(form.user_id),
           injury_type: form.injury_type.trim(),
-          severity: form.severity,
-          status: form.status,
+          severity: normalizeSeverity(form.severity),
+          status: normalizeStatus(form.status),
           notes: form.notes.trim(),
         },
       });
@@ -376,15 +389,15 @@ export function InjuryPrevention() {
             iconColor: "text-red-600",
           },
           {
-            label: "Inactive Cases",
-            value: String(stats.inactiveCases),
+            label: "Recovered Cases",
+            value: String(stats.recoveredCases),
             icon: ShieldCheck,
             iconBg: "bg-gray-100",
             iconColor: "text-gray-600",
           },
           {
-            label: "High Severity",
-            value: String(stats.highSeverityCases),
+            label: "Severe Cases",
+            value: String(stats.severeSeverityCases),
             icon: AlertTriangle,
             iconBg: "bg-orange-50",
             iconColor: "text-orange-600",
@@ -439,7 +452,7 @@ export function InjuryPrevention() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="recovered">Recovered</SelectItem>
               </SelectContent>
             </Select>
 
@@ -455,9 +468,9 @@ export function InjuryPrevention() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Severity</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="mild">Mild</SelectItem>
+                <SelectItem value="moderate">Moderate</SelectItem>
+                <SelectItem value="severe">Severe</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -482,6 +495,31 @@ export function InjuryPrevention() {
                 const statusStyle = statusStyles[status];
                 const restrictions = getSafeArray(item.exercise_restrictions);
                 const alternatives = getSafeArray(item.ai_alternatives);
+                const aiRequest = item.modification_request ?? null;
+                const aiChangesSummary = getSafeArray(
+                  aiRequest?.changes_summary
+                );
+                const aiRecommendations = getSafeArray(
+                  aiRequest?.recommendations
+                );
+                const restrictionItems =
+                  restrictions.length > 0 ? restrictions : aiChangesSummary;
+                const alternativeItems =
+                  alternatives.length > 0 ? alternatives : aiRecommendations;
+                const restrictionMessage = aiRequest
+                  ? "AI request created. Waiting for detailed exercise restrictions."
+                  : "No restrictions listed.";
+                const alternativeMessage = aiRequest
+                  ? "AI request created. Waiting for coach review or alternatives."
+                  : "No alternatives available.";
+                const showAiChangesSummary =
+                  aiRequest !== null &&
+                  restrictions.length > 0 &&
+                  aiChangesSummary.length > 0;
+                const showAiRecommendations =
+                  aiRequest !== null &&
+                  alternatives.length > 0 &&
+                  aiRecommendations.length > 0;
 
                 return (
                   <div
@@ -519,6 +557,66 @@ export function InjuryPrevention() {
                       </div>
                     </div>
 
+                    {aiRequest ? (
+                      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                          Linked AI Request #{aiRequest.id} -{" "}
+                          {formatLabel(aiRequest.status)}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {showAiChangesSummary || showAiRecommendations ? (
+                      <div className="bg-white/70 rounded-xl p-4 border border-blue-100 mb-4">
+                        <div className="flex items-center gap-1.5 mb-3">
+                          <ShieldCheck size={14} className="text-blue-600" />
+                          <p className="text-xs font-700 text-blue-700 uppercase tracking-wider">
+                            AI Request Context
+                          </p>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {showAiChangesSummary ? (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 mb-2">
+                                Changes Summary
+                              </p>
+                              <ul className="space-y-1.5">
+                                {aiChangesSummary.map((change, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-sm text-gray-700 flex items-center gap-2"
+                                  >
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                                    {change}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {showAiRecommendations ? (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 mb-2">
+                                Recommendations
+                              </p>
+                              <ul className="space-y-1.5">
+                                {aiRecommendations.map((recommendation, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-sm text-gray-700 flex items-center gap-2"
+                                  >
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                                    {recommendation}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div className="bg-white/70 rounded-xl p-4 border border-red-100">
                         <div className="flex items-center gap-1.5 mb-2">
@@ -528,13 +626,13 @@ export function InjuryPrevention() {
                           </p>
                         </div>
 
-                        {restrictions.length === 0 ? (
+                        {restrictionItems.length === 0 ? (
                           <p className="text-sm text-gray-500">
-                            No restrictions listed.
+                            {restrictionMessage}
                           </p>
                         ) : (
                           <ul className="space-y-1.5">
-                            {restrictions.map((restriction, index) => (
+                            {restrictionItems.map((restriction, index) => (
                               <li
                                 key={index}
                                 className="text-sm text-gray-700 flex items-center gap-2"
@@ -555,13 +653,13 @@ export function InjuryPrevention() {
                           </p>
                         </div>
 
-                        {alternatives.length === 0 ? (
+                        {alternativeItems.length === 0 ? (
                           <p className="text-sm text-gray-500">
-                            No alternatives available.
+                            {alternativeMessage}
                           </p>
                         ) : (
                           <ul className="space-y-1.5">
-                            {alternatives.map((alternative, index) => (
+                            {alternativeItems.map((alternative, index) => (
                               <li
                                 key={index}
                                 className="text-sm text-gray-700 flex items-center gap-2"
@@ -714,7 +812,7 @@ export function InjuryPrevention() {
                   onValueChange={(value) =>
                     setCreateForm((prev) => ({
                       ...prev,
-                      severity: value as "low" | "medium" | "high",
+                      severity: value as InjurySeverity,
                     }))
                   }
                 >
@@ -722,9 +820,9 @@ export function InjuryPrevention() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="mild">Mild</SelectItem>
+                    <SelectItem value="moderate">Moderate</SelectItem>
+                    <SelectItem value="severe">Severe</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -736,7 +834,7 @@ export function InjuryPrevention() {
                   onValueChange={(value) =>
                     setCreateForm((prev) => ({
                       ...prev,
-                      status: value as "active" | "inactive",
+                      status: value as InjuryStatus,
                     }))
                   }
                 >
@@ -745,7 +843,7 @@ export function InjuryPrevention() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="recovered">Recovered</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -837,11 +935,9 @@ export function InjuryPrevention() {
                 <Label>User ID</Label>
                 <Input
                   value={form.user_id}
-                  onChange={(e) => {
-                    setForm((prev) => ({ ...prev, user_id: e.target.value }));
-                    if (editError) setEditError("");
-                  }}
                   placeholder="User ID"
+                  readOnly
+                  disabled
                 />
               </div>
 
@@ -868,7 +964,7 @@ export function InjuryPrevention() {
                     onValueChange={(value) =>
                       setForm((prev) => ({
                         ...prev,
-                        severity: value as "low" | "medium" | "high",
+                        severity: value as InjurySeverity,
                       }))
                     }
                   >
@@ -876,9 +972,9 @@ export function InjuryPrevention() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="mild">Mild</SelectItem>
+                      <SelectItem value="moderate">Moderate</SelectItem>
+                      <SelectItem value="severe">Severe</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -890,7 +986,7 @@ export function InjuryPrevention() {
                     onValueChange={(value) =>
                       setForm((prev) => ({
                         ...prev,
-                        status: value as "active" | "inactive",
+                        status: value as InjuryStatus,
                       }))
                     }
                   >
@@ -899,7 +995,7 @@ export function InjuryPrevention() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="recovered">Recovered</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

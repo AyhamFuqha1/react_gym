@@ -6,6 +6,7 @@ import {
 } from "../utils/aiPlanRequests";
 import type {
   ModificationRequestItem,
+  ModificationUserFeedback,
   SearchExerciseItem,
 } from "../utils/aiPlanRequests";
 
@@ -38,13 +39,7 @@ export async function updateModificationRequest(
       };
     };
     recommendations: string[];
-    user_feedback: {
-      difficulty?: string;
-      pain_areas?: string[];
-      liked_exercises?: string[];
-      disliked_exercises?: string[];
-      modification_request?: string;
-    };
+    user_feedback: ModificationUserFeedback;
   }
 ) {
   const response = await api.put(`/modification-requests/${id}`, payload);

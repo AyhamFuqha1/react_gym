@@ -15,6 +15,21 @@ export interface PlanWorkoutDay {
   exercises: PlanExercise[];
 }
 
+export interface ModificationUserFeedback {
+  [key: string]: unknown;
+  difficulty?: string;
+  pain_areas?: string[];
+  liked_exercises?: string[];
+  disliked_exercises?: string[];
+  modification_request?: string;
+  request_type?: string;
+  injury_id?: string | number;
+  injury_type?: string;
+  severity?: string;
+  notes?: string | null;
+  status?: string;
+}
+
 export interface ModificationRequestItem {
   id: number;
   planId: string;
@@ -22,10 +37,12 @@ export interface ModificationRequestItem {
   requestDate: string | null;
   status: "pending" | "done" | "edited" | "approved";
   source: "generated" | "modification" | string;
+  sourceId: string | number | null;
   userId: number | null;
   userName: string;
   userAvatar: string;
   userRequest: string;
+  userFeedback?: ModificationUserFeedback;
   changesSummary: string[];
   modifiedPlan: {
     duration: string;
@@ -56,6 +73,88 @@ function buildAvatar(name: string): string {
   if (parts.length === 0) return "AI";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function getObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getString(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  return String(value);
+}
+
+function getStringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) ? value.map((item) => String(item)) : undefined;
+}
+
+function normalizeUserFeedback(raw: unknown): ModificationUserFeedback | undefined {
+  const source = getObject(raw);
+  if (!source) return undefined;
+
+  const feedback: ModificationUserFeedback = { ...source };
+
+  feedback.difficulty = getString(source.difficulty);
+  feedback.pain_areas = getStringArray(source.pain_areas);
+  feedback.liked_exercises = getStringArray(source.liked_exercises);
+  feedback.disliked_exercises = getStringArray(source.disliked_exercises);
+  feedback.modification_request = getString(source.modification_request);
+  feedback.request_type = getString(source.request_type);
+  feedback.injury_type = getString(source.injury_type);
+  feedback.severity = getString(source.severity);
+  feedback.status = getString(source.status);
+  feedback.notes =
+    source.notes === null || source.notes === undefined
+      ? (source.notes as null | undefined)
+      : String(source.notes);
+
+  if (source.injury_id !== null && source.injury_id !== undefined) {
+    feedback.injury_id =
+      typeof source.injury_id === "number"
+        ? source.injury_id
+        : String(source.injury_id);
+  }
+
+  return feedback;
+}
+
+export function isInjuryModificationRequest(
+  source?: string | null,
+  feedback?: ModificationUserFeedback | null
+) {
+  return (
+    String(source ?? "").toLowerCase() === "injury" ||
+    String(feedback?.request_type ?? "").toLowerCase() === "injury"
+  );
+}
+
+export function buildModificationUserRequest(
+  feedback: ModificationUserFeedback | undefined,
+  source: string,
+  fallback?: string
+) {
+  const modificationRequest = feedback?.modification_request?.trim();
+  const injuryType = feedback?.injury_type?.trim();
+  const genericRequest = "Training modification request";
+  const injuryRequest = injuryType
+    ? `Training modification requested because of injury: ${injuryType}`
+    : genericRequest;
+
+  if (isInjuryModificationRequest(source, feedback)) {
+    if (!modificationRequest || modificationRequest === genericRequest) {
+      return injuryRequest;
+    }
+  }
+
+  return (
+    modificationRequest ||
+    fallback ||
+    (source === "generated"
+      ? "AI generated a new training plan for coach review."
+      : genericRequest)
+  );
 }
 
 function guessWorkoutTitle(
@@ -92,6 +191,7 @@ export function normalizeTrainingModificationRequestsResponse(
 
   return sourceItems.map((item: any) => {
     const source = String(item?.source ?? "modification").toLowerCase();
+    const userFeedback = normalizeUserFeedback(item?.user_feedback);
 
     const userName =
       item?.user_name ||
@@ -167,17 +267,16 @@ export function normalizeTrainingModificationRequestsResponse(
         | "edited"
         | "approved",
       source,
+      sourceId: item?.source_id ?? item?.sourceId ?? null,
       userId: item?.user_id != null ? Number(item.user_id) : null,
       userName: String(userName),
       userAvatar: buildAvatar(String(userName)),
-      userRequest: String(
-        item?.user_feedback?.modification_request ??
-          item?.user_request ??
-          item?.modification_request ??
-          (source === "generated"
-            ? "AI generated a new training plan for coach review."
-            : "Training modification request")
+      userRequest: buildModificationUserRequest(
+        userFeedback,
+        source,
+        item?.user_request ?? item?.modification_request
       ),
+      userFeedback,
       changesSummary: Array.isArray(item?.changes_summary)
         ? item.changes_summary.map((entry: any) => String(entry))
         : [],

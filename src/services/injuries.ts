@@ -1,13 +1,31 @@
 import api from "./api";
 
+export type InjurySeverity = "mild" | "moderate" | "severe";
+export type InjuryStatus = "active" | "recovered";
+
+export interface InjuryModificationRequest {
+  id: number | string;
+  type?: string;
+  status?: string;
+  source?: string;
+  source_id?: number | string | null;
+  recommendations?: unknown;
+  changes_summary?: unknown;
+  modified_plan?: unknown;
+  user_feedback?: unknown;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface InjuryDashboardItem {
   id: number;
   user_name: string;
   injury_type: string;
-  severity: "low" | "medium" | "high";
-  status: "active" | "inactive" | string;
-  exercise_restrictions: string[];
-  ai_alternatives: string[];
+  severity: InjurySeverity | string;
+  status: InjuryStatus | string;
+  exercise_restrictions?: unknown;
+  ai_alternatives?: unknown;
+  modification_request?: InjuryModificationRequest | null;
 }
 
 export interface InjuryPaginationLink {
@@ -37,9 +55,9 @@ export interface InjuryDetails {
   id: number;
   user_id: number;
   injury_type: string;
-  severity: "low" | "medium" | "high";
+  severity: InjurySeverity | string;
   notes: string | null;
-  status: "active" | "inactive" | string;
+  status: InjuryStatus | string;
   created_at?: string;
 }
 
@@ -51,9 +69,9 @@ export interface GetInjuryByIdResponse {
 export interface CreateInjuryPayload {
   user_id: number;
   injury_type: string;
-  severity: "low" | "medium" | "high";
+  severity: InjurySeverity;
   notes?: string;
-  status: "active" | "inactive";
+  status: InjuryStatus;
 }
 
 export interface CreateInjuryResponse {
@@ -63,18 +81,18 @@ export interface CreateInjuryResponse {
     id: number;
     user_id: string | number;
     injury_type: string;
-    severity: "low" | "medium" | "high";
+    severity: InjurySeverity;
     notes: string | null;
-    status: "active" | "inactive";
+    status: InjuryStatus;
   };
 }
 
 export interface UpdateInjuryPayload {
   user_id?: number;
   injury_type?: string;
-  severity?: "low" | "medium" | "high";
+  severity?: InjurySeverity;
   notes?: string;
-  status?: "active" | "inactive";
+  status?: InjuryStatus;
 }
 
 export interface UpdateInjuryResponse {

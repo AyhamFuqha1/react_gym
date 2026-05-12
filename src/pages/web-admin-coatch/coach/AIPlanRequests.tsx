@@ -25,9 +25,12 @@ import {
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import type {
-  ModificationRequestItem,
-  SearchExerciseItem,
+import {
+  buildModificationUserRequest,
+  isInjuryModificationRequest,
+  type ModificationUserFeedback,
+  type ModificationRequestItem,
+  type SearchExerciseItem,
 } from "../../../utils/aiPlanRequests";
 import { getModificationRequestById, searchExercises } from "../../../services/aiPlanRequests";
 import { useTrainingModificationRequests } from "../../../hooks/aiPlanRequests/queries/useTrainingModificationRequests";
@@ -76,6 +79,12 @@ const sourceConfig = {
     text: "text-violet-700",
     border: "border-violet-200",
   },
+  injury: {
+    label: "Injury",
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    border: "border-rose-200",
+  },
 };
 
 const difficultyColors: Record<string, string> = {
@@ -113,6 +122,7 @@ type DetailApiResponse = {
   type: string;
   status: string;
   source?: string;
+  source_id?: string | number | null;
   changes_summary: string[];
   modified_plan: {
     plan_id: string | number | null;
@@ -123,13 +133,7 @@ type DetailApiResponse = {
     };
   } | null;
   recommendations: string[];
-  user_feedback?: {
-    difficulty?: string;
-    pain_areas?: string[];
-    liked_exercises?: string[];
-    disliked_exercises?: string[];
-    modification_request?: string;
-  };
+  user_feedback?: ModificationUserFeedback;
   created_at: string;
   updated_at: string;
   user?: {
@@ -369,6 +373,8 @@ export function AIPlanRequests() {
 
           const rawPlanId =
             full?.modified_plan?.plan_id ?? full?.program_version_id ?? item.planId;
+          const requestSource = String(full?.source ?? item.source).toLowerCase();
+          const detailFeedback = full?.user_feedback ?? item.userFeedback;
 
           return {
             ...item,
@@ -382,11 +388,16 @@ export function AIPlanRequests() {
               | "done"
               | "edited"
               | "approved",
-            source: String(full?.source ?? item.source),
+            source: requestSource,
+            sourceId: full?.source_id ?? item.sourceId ?? null,
             userId: Number(full?.user_id ?? item.userId ?? 0),
             userName: full?.user?.name ? String(full.user.name) : item.userName,
-            userRequest:
-              full?.user_feedback?.modification_request ?? item.userRequest,
+            userRequest: buildModificationUserRequest(
+              detailFeedback,
+              requestSource,
+              item.userRequest
+            ),
+            userFeedback: detailFeedback,
             changesSummary: Array.isArray(full?.changes_summary)
               ? full.changes_summary.map((x) => String(x))
               : item.changesSummary,
@@ -573,6 +584,9 @@ export function AIPlanRequests() {
     const request = modificationRequests.find((item) => item.id === requestId);
     if (!request) return;
 
+    const existingFeedback =
+      modificationDetailsById[requestId]?.user_feedback ?? request.userFeedback ?? {};
+
     try {
       await updateMutation.mutateAsync({
         id: requestId,
@@ -599,13 +613,11 @@ export function AIPlanRequests() {
           },
           recommendations: request.recommendations,
           user_feedback: {
-            difficulty: modificationDetailsById[requestId]?.user_feedback?.difficulty,
-            pain_areas:
-              modificationDetailsById[requestId]?.user_feedback?.pain_areas ?? [],
-            liked_exercises:
-              modificationDetailsById[requestId]?.user_feedback?.liked_exercises ?? [],
-            disliked_exercises:
-              modificationDetailsById[requestId]?.user_feedback?.disliked_exercises ?? [],
+            ...existingFeedback,
+            difficulty: existingFeedback.difficulty,
+            pain_areas: existingFeedback.pain_areas ?? [],
+            liked_exercises: existingFeedback.liked_exercises ?? [],
+            disliked_exercises: existingFeedback.disliked_exercises ?? [],
             modification_request: request.userRequest,
           },
         },
@@ -740,15 +752,35 @@ export function AIPlanRequests() {
                 statusConfig[modRequest.status as keyof typeof statusConfig] ??
                 statusConfig.pending;
 
-              const source =
-                sourceConfig[modRequest.source as keyof typeof sourceConfig] ??
-                sourceConfig.modification;
-
               const isExpanded = expandedRequest === modRequest.id;
               const hasModifiedPlan = modRequest.modifiedPlan.schedule.length > 0;
               const isEditing = editingModificationId === modRequest.id;
               const detail = modificationDetailsById[modRequest.id];
-              const feedback = detail?.user_feedback;
+              const feedback = detail?.user_feedback ?? modRequest.userFeedback;
+              const isInjuryRequest = isInjuryModificationRequest(
+                modRequest.source,
+                feedback
+              );
+              const sourceKey = isInjuryRequest ? "injury" : modRequest.source;
+              const source =
+                sourceConfig[sourceKey as keyof typeof sourceConfig] ??
+                sourceConfig.modification;
+              const displayedUserRequest = buildModificationUserRequest(
+                feedback,
+                modRequest.source,
+                modRequest.userRequest
+              );
+              const sourceId = detail?.source_id ?? modRequest.sourceId;
+              const injuryId = feedback?.injury_id ?? sourceId;
+              const hasInjuryContext =
+                isInjuryRequest &&
+                Boolean(
+                  injuryId ||
+                    feedback?.injury_type ||
+                    feedback?.severity ||
+                    feedback?.notes ||
+                    feedback?.status
+                );
 
               return (
                 <div
@@ -865,7 +897,7 @@ export function AIPlanRequests() {
                         titleClassName="text-[#111827]"
                       >
                         <p className="text-gray-600 leading-relaxed break-words">
-                          "{modRequest.userRequest}"
+                          "{displayedUserRequest}"
                         </p>
                       </SectionCard>
 
@@ -943,27 +975,101 @@ export function AIPlanRequests() {
                               </div>
                             </div>
 
-                            <div className="flex items-start gap-2">
-                              <ShieldAlert className="w-4 h-4 mt-0.5 text-gray-500" />
-                              <div>
-                                <span className="font-semibold text-[#111827]">
-                                  Difficulty:
-                                </span>{" "}
-                                {feedback?.difficulty ?? "N/A"}
-                              </div>
-                            </div>
+                            {hasInjuryContext ? (
+                              <>
+                                <div className="border-t border-gray-100 pt-3">
+                                  <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
+                                    Injury Context
+                                  </p>
+                                </div>
 
-                            <div className="flex items-start gap-2">
-                              <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
-                              <div>
-                                <span className="font-semibold text-[#111827]">
-                                  Pain Areas:
-                                </span>{" "}
-                                {feedback?.pain_areas?.length
-                                  ? feedback.pain_areas.join(", ")
-                                  : "None"}
-                              </div>
-                            </div>
+                                {injuryId ? (
+                                  <div className="flex items-start gap-2">
+                                    <RefreshCw className="w-4 h-4 mt-0.5 text-gray-500" />
+                                    <div>
+                                      <span className="font-semibold text-[#111827]">
+                                        Injury ID:
+                                      </span>{" "}
+                                      {injuryId}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {feedback?.injury_type ? (
+                                  <div className="flex items-start gap-2">
+                                    <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
+                                    <div>
+                                      <span className="font-semibold text-[#111827]">
+                                        Injury Type:
+                                      </span>{" "}
+                                      {feedback.injury_type}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {feedback?.severity ? (
+                                  <div className="flex items-start gap-2">
+                                    <ShieldAlert className="w-4 h-4 mt-0.5 text-gray-500" />
+                                    <div>
+                                      <span className="font-semibold text-[#111827]">
+                                        Severity:
+                                      </span>{" "}
+                                      {toTitleCase(feedback.severity)}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {feedback?.status ? (
+                                  <div className="flex items-start gap-2">
+                                    <Check className="w-4 h-4 mt-0.5 text-gray-500" />
+                                    <div>
+                                      <span className="font-semibold text-[#111827]">
+                                        Injury Status:
+                                      </span>{" "}
+                                      {toTitleCase(feedback.status)}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {feedback?.notes ? (
+                                  <div className="flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 text-gray-500" />
+                                    <div>
+                                      <span className="font-semibold text-[#111827]">
+                                        Notes:
+                                      </span>{" "}
+                                      {feedback.notes}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : null}
+
+                            {!isInjuryRequest ? (
+                              <>
+                                <div className="flex items-start gap-2">
+                                  <ShieldAlert className="w-4 h-4 mt-0.5 text-gray-500" />
+                                  <div>
+                                    <span className="font-semibold text-[#111827]">
+                                      Difficulty:
+                                    </span>{" "}
+                                    {feedback?.difficulty ?? "N/A"}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-start gap-2">
+                                  <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
+                                  <div>
+                                    <span className="font-semibold text-[#111827]">
+                                      Pain Areas:
+                                    </span>{" "}
+                                    {feedback?.pain_areas?.length
+                                      ? feedback.pain_areas.join(", ")
+                                      : "None"}
+                                  </div>
+                                </div>
+                              </>
+                            ) : null}
                           </div>
                         </SectionCard>
 
