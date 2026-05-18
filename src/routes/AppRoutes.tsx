@@ -18,6 +18,8 @@ import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/Subscri
 import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
 import { AIPlanRequests } from "../pages/web-admin-coatch/coach/AIPlanRequests";
 import AINutritionRequests from "../pages/web-admin-coatch/coach/AINutritionRequests";
+import { AdminCoachSessions } from "../pages/web-admin-coatch/admin/AdminCoachSessions";
+import { CoachSessions } from "../pages/web-admin-coatch/coach/CoachSessions";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -79,6 +81,10 @@ export const router = createBrowserRouter([
         path: "subscriptions",
         element: <SubscriptionsManagement />,
       },
+      {
+        path: "coach-sessions",
+        element: <AdminCoachSessions />,
+      },
     ],
   },
   {
@@ -118,6 +124,10 @@ export const router = createBrowserRouter([
         element: <InjuryPrevention />,
       },
       {
+        path: "feedback",
+        element: <AdminFeedback />,
+      },
+      {
         path: "news",
         element: <NewsManagement />,
       },
@@ -128,6 +138,10 @@ export const router = createBrowserRouter([
       {
         path: "ai-nutrition-requests",
         element: <AINutritionRequests />,
+      },
+      {
+        path: "coach-sessions",
+        element: <CoachSessions />,
       }
     ],
   },

@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Apple,
   CreditCard,
+  CalendarDays,
 } from "lucide-react";
 import { clearAuth, getEmail, getRole, logout } from "../services/auth";
 
@@ -39,6 +40,11 @@ export function AdminLayout() {
       path: "/dashboard/admin/subscriptions",
       icon: CreditCard,
       label: "Subscriptions",
+    },
+    {
+      path: "/dashboard/admin/coach-sessions",
+      icon: CalendarDays,
+      label: "Coach Sessions",
     },
     { path: "/dashboard/admin/content", icon: BookOpen, label: "Content" },
     {

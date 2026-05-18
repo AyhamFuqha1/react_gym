@@ -22,5 +22,8 @@ export function formatStatusLabel(status: string) {
   if (status === "in_progress") return "In Progress";
   if (status === "pending") return "Pending";
   if (status === "resolved") return "Resolved";
+  if (status === "reviewed") return "Under Review";
+  if (status === "implemented") return "Resolved";
+  if (status === "under_review") return "Under Review";
   return status.replace(/_/g, " ");
 }

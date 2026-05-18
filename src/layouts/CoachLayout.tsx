@@ -5,11 +5,13 @@ import {
   BookOpen,
   Sparkles,
   Shield,
+  MessageSquare,
   Newspaper,
   LogOut,
   Dumbbell,
   ChevronRight,
   Apple,
+  CalendarDays,
 } from "lucide-react";
 import { clearAuth, getEmail, getRole, logout } from "../services/auth";
 
@@ -44,6 +46,11 @@ export function CoachLayout() {
       icon: Apple,
       label: "AI Nutrition Requests",
     },
+    {
+      path: "/dashboard/coach/coach-sessions",
+      icon: CalendarDays,
+      label: "Coach Sessions",
+    },
     { path: "/dashboard/coach/content", icon: BookOpen, label: "Content" },
     {
       path: "/dashboard/coach/nutrition",
@@ -54,6 +61,11 @@ export function CoachLayout() {
       path: "/dashboard/coach/injury-prevention",
       icon: Shield,
       label: "Injury Prevention",
+    },
+    {
+      path: "/dashboard/coach/feedback",
+      icon: MessageSquare,
+      label: "Feedback",
     },
     { path: "/dashboard/coach/news", icon: Newspaper, label: "News" },
   ];
