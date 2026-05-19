@@ -36,6 +36,7 @@ export function AdminLayout() {
   const navItems = [
     { path: "/dashboard/admin", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/dashboard/admin/members", icon: Users, label: "Members" },
+    { path: "/dashboard/admin/coaches", icon: Dumbbell, label: "Coaches" },
     {
       path: "/dashboard/admin/subscriptions",
       icon: CreditCard,

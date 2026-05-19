@@ -38,7 +38,7 @@ import {
   getPlanOptions,
   renewMemberSubscription,
   resumeMemberSubscription,
-  getSubscriptionRemainingDays,
+  getSubscriptionDaysLeft,
   getDisplaySubscriptionStatus,
   getLocalDateString,
   type MemberItem,
@@ -137,7 +137,10 @@ export function MemberDetails() {
     mutationFn: freezeMemberSubscription,
     onSuccess: async () => {
       setSubscriptionStatusOverride("frozen");
-      await queryClient.invalidateQueries({ queryKey: ["members"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["members"] }),
+        queryClient.invalidateQueries({ queryKey: ["member-overview", memberIdNumber] }),
+      ]);
     },
     onError: (err: any) => {
       setError(err?.response?.data?.message || "Failed to freeze subscription");
@@ -148,7 +151,10 @@ export function MemberDetails() {
     mutationFn: resumeMemberSubscription,
     onSuccess: async () => {
       setSubscriptionStatusOverride("active");
-      await queryClient.invalidateQueries({ queryKey: ["members"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["members"] }),
+        queryClient.invalidateQueries({ queryKey: ["member-overview", memberIdNumber] }),
+      ]);
     },
     onError: (err: any) => {
       setError(err?.response?.data?.message || "Failed to resume subscription");
@@ -236,18 +242,34 @@ export function MemberDetails() {
   const rawStatus = (
     subscriptionStatusOverride ??
     memberRow?.status ??
+    overview?.subscription_status ??
+    nutrition?.user?.status ??
     "unknown"
   ).toLowerCase();
 
-  const currentEndDate = memberRow?.end_date || null;
+  const currentEndDate = memberRow?.end_date || overview?.end_date || null;
+  const backendRemainingDays =
+    memberRow?.remaining_days ?? overview?.remaining_days;
+  const backendFrozenRemainingDays =
+    memberRow?.frozen_remaining_days ?? overview?.frozen_remaining_days;
 
   const remainingDays = useMemo(() => {
-    return getSubscriptionRemainingDays(currentEndDate);
-  }, [currentEndDate]);
+    return getSubscriptionDaysLeft({
+      status: rawStatus,
+      endDate: currentEndDate,
+      remainingDays: backendRemainingDays,
+      frozenRemainingDays: backendFrozenRemainingDays,
+    });
+  }, [
+    backendFrozenRemainingDays,
+    backendRemainingDays,
+    currentEndDate,
+    rawStatus,
+  ]);
 
   const displayStatus = useMemo(() => {
-    return getDisplaySubscriptionStatus(rawStatus, currentEndDate);
-  }, [rawStatus, currentEndDate]);
+    return getDisplaySubscriptionStatus(rawStatus, currentEndDate, remainingDays);
+  }, [rawStatus, currentEndDate, remainingDays]);
 
   const hasActiveSubscription = displayStatus === "active" && remainingDays > 0;
   const actionLoading =
@@ -257,9 +279,9 @@ export function MemberDetails() {
     updatePlanMutation.isPending ||
     deletePlanMutation.isPending;
 
-  const canRenew = !hasActiveSubscription && !actionLoading;
+  const canRenew = displayStatus !== "frozen" && !hasActiveSubscription && !actionLoading;
   const canFreeze = displayStatus === "active" && remainingDays > 0 && !actionLoading;
-  const canResume = displayStatus === "frozen" && !actionLoading;
+  const canResume = displayStatus === "frozen" && remainingDays > 0 && !actionLoading;
 
   const progressValue = useMemo(() => {
     if (!overview?.weight || !overview?.target_weight) return 0;
@@ -280,6 +302,11 @@ export function MemberDetails() {
   }, [overview]);
 
   const openRenewDialog = () => {
+    if (displayStatus === "frozen") {
+      setError("This member has a frozen subscription. Resume it before renewing.");
+      return;
+    }
+
     if (hasActiveSubscription) {
       setError("This member already has an active subscription and cannot be renewed yet.");
       return;
@@ -291,6 +318,12 @@ export function MemberDetails() {
 
   const handleRenew = async () => {
     if (!selectedPlan) return;
+
+    if (displayStatus === "frozen") {
+      setError("This member has a frozen subscription. Resume it before renewing.");
+      setIsRenewDialogOpen(false);
+      return;
+    }
 
     if (hasActiveSubscription) {
       setError("This member already has an active subscription and cannot be renewed yet.");

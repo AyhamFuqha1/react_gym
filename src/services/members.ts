@@ -6,6 +6,10 @@ export interface MemberItem {
   plan_name: string | null;
   status: string | null;
   end_date: string | null;
+  remaining_days?: number | string | null;
+  frozen_remaining_days?: number | string | null;
+  frozen_at?: string | null;
+  resumed_at?: string | null;
 }
 
 export interface MembersStats {
@@ -34,6 +38,14 @@ export interface MemberOverviewResponse {
   weight: number | null;
   goal_type: string | null;
   target_weight: string | number | null;
+  subscription_status?: string | null;
+  end_date?: string | null;
+  number_day?: number | string | null;
+  remaining_days?: number | string | null;
+  frozen_remaining_days?: number | string | null;
+  frozen_at?: string | null;
+  resumed_at?: string | null;
+  subscription?: unknown;
 }
 
 export interface MemberNutritionFood {
@@ -149,6 +161,44 @@ export function getSubscriptionRemainingDays(
   return Math.floor(diffDays);
 }
 
+function toDayCount(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed)) return null;
+
+  return Math.max(Math.floor(parsed), 0);
+}
+
+export function getSubscriptionDaysLeft({
+  status,
+  endDate,
+  remainingDays,
+  frozenRemainingDays,
+}: {
+  status: string | null | undefined;
+  endDate: string | null | undefined;
+  remainingDays?: number | string | null;
+  frozenRemainingDays?: number | string | null;
+}): number {
+  const normalizedStatus = (status || "unknown").trim().toLowerCase();
+
+  if (normalizedStatus === "frozen") {
+    return (
+      toDayCount(frozenRemainingDays) ??
+      toDayCount(remainingDays) ??
+      0
+    );
+  }
+
+  if (normalizedStatus === "active") {
+    return toDayCount(remainingDays) ?? getSubscriptionRemainingDays(endDate);
+  }
+
+  return toDayCount(remainingDays) ?? 0;
+}
+
 export function isSubscriptionExpired(
   endDate: string | null | undefined
 ): boolean {
@@ -165,11 +215,15 @@ export function isSubscriptionExpired(
 
 export function getDisplaySubscriptionStatus(
   status: string | null | undefined,
-  endDate: string | null | undefined
+  endDate: string | null | undefined,
+  daysLeft?: number | string | null
 ): MemberDisplaySubscriptionStatus {
   const normalizedStatus = (status || "unknown").trim().toLowerCase();
 
   if (normalizedStatus === "frozen") return "frozen";
+  if (normalizedStatus === "active" && (toDayCount(daysLeft) ?? 0) > 0) {
+    return "active";
+  }
 
   if (isSubscriptionExpired(endDate)) return "expired";
 

@@ -15,6 +15,7 @@ import { NewsManagement } from "../pages/web-admin-coatch/NewsManagement";
 import { ExercisesPage } from "../pages/web-admin-coatch/ExercisesPage";
 import { NutritionLibrary } from "../pages/web-admin-coatch/NutritionLibrary";
 import { SubscriptionsManagement } from "../pages/web-admin-coatch/admin/SubscriptionsManagement";
+import { CoachesManagement } from "../pages/web-admin-coatch/admin/CoachesManagement";
 import { NutritionFoods } from "../pages/web-admin-coatch/NutritionFoods";
 import { AIPlanRequests } from "../pages/web-admin-coatch/coach/AIPlanRequests";
 import AINutritionRequests from "../pages/web-admin-coatch/coach/AINutritionRequests";
@@ -48,6 +49,10 @@ export const router = createBrowserRouter([
       {
         path: "members/:memberId",
         element: <MemberDetails />,
+      },
+      {
+        path: "coaches",
+        element: <CoachesManagement />,
       },
       {
         path: "content",
