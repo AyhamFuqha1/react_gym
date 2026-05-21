@@ -5,7 +5,6 @@ import {
   BookOpen,
   Sparkles,
   Shield,
-  MessageSquare,
   Newspaper,
   LogOut,
   Dumbbell,
@@ -61,11 +60,6 @@ export function CoachLayout() {
       path: "/dashboard/coach/injury-prevention",
       icon: Shield,
       label: "Injury Prevention",
-    },
-    {
-      path: "/dashboard/coach/feedback",
-      icon: MessageSquare,
-      label: "Feedback",
     },
     { path: "/dashboard/coach/news", icon: Newspaper, label: "News" },
   ];

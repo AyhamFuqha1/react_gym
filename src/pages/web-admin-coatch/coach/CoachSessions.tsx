@@ -387,6 +387,30 @@ function hourToTime(hour: number) {
   return `${String(normalizedHour).padStart(2, "0")}:00`;
 }
 
+function getSlotStartDateTime(slotDate: Date, slotStartTime: string) {
+  const [hourPart, minutePart = "0"] = slotStartTime.split(":");
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return null;
+  }
+
+  const slotStart = new Date(slotDate);
+  slotStart.setHours(hours, minutes, 0, 0);
+  return slotStart;
+}
+
+function isPastSlot(slotDate: Date, slotStartTime: string) {
+  const slotStart = getSlotStartDateTime(slotDate, slotStartTime);
+
+  if (!slotStart) {
+    return true;
+  }
+
+  return slotStart <= new Date();
+}
+
 function timeToMinutes(value?: string | null) {
   if (!value) return null;
 
@@ -659,12 +683,17 @@ export function CoachSessions() {
   function openCreateDialogForSlot(dayValue: number, hour: number) {
     const selectedDate = getDateForWeekday(visibleWeekStart, dayValue);
     const sessionDate = toDateInputFromDate(selectedDate);
+    const startTime = hourToTime(hour);
+
+    if (isPastSlot(selectedDate, startTime)) {
+      return;
+    }
 
     setForm({
       ...emptyForm,
       session_date: sessionDate,
       day_of_week: getDayValueFromDate(sessionDate),
-      start_time: hourToTime(hour),
+      start_time: startTime,
       end_time: hourToTime(hour + 1),
     });
     setFormError("");
@@ -713,6 +742,13 @@ export function CoachSessions() {
 
     if (validationMessage) {
       setFormError(validationMessage);
+      return;
+    }
+
+    const sessionDate = parseSessionDate(form.session_date);
+
+    if (!sessionDate || isPastSlot(sessionDate, form.start_time)) {
+      setFormError("Cannot create a session in the past.");
       return;
     }
 
@@ -1294,25 +1330,38 @@ function ScheduleRow({
       </div>
 
       {gridDays.map((day) => {
+        const slotDate = getDateForWeekday(visibleWeekStart, day.value);
+        const slotIsPast = isPastSlot(slotDate, hourToTime(hour));
         const sessionsForSlot = sessions.filter(
           (session) =>
             isSessionInVisibleWeek(session, visibleWeekStart) &&
             getSessionDayValue(session) === day.value &&
             getSessionSlotHour(session) === hour
         );
+        const canCreateInSlot = !slotIsPast;
 
         return (
           <div
             key={`${day.value}-${hour}`}
-            role="button"
-            tabIndex={0}
-            onClick={() => onEmptySlotClick(day.value, hour)}
+            role={canCreateInSlot ? "button" : undefined}
+            tabIndex={canCreateInSlot ? 0 : undefined}
+            onClick={() => {
+              if (!canCreateInSlot) return;
+              onEmptySlotClick(day.value, hour);
+            }}
             onKeyDown={(event) => {
+              if (!canCreateInSlot) return;
               if (event.key === "Enter" || event.key === " ") {
                 onEmptySlotClick(day.value, hour);
               }
             }}
-            className="min-h-[104px] bg-white border-r border-b border-gray-100 p-2 cursor-pointer hover:bg-[#E6F4F1]/40 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0D7D6D]/30 focus:ring-inset"
+            className={`min-h-[104px] border-r border-b border-gray-100 p-2 transition-colors ${
+              canCreateInSlot
+                ? "bg-white cursor-pointer hover:bg-[#E6F4F1]/40 focus:outline-none focus:ring-2 focus:ring-[#0D7D6D]/30 focus:ring-inset"
+                : sessionsForSlot.length > 0
+                  ? "bg-white cursor-default"
+                  : "bg-gray-50 cursor-default"
+            }`}
           >
             {sessionsForSlot.length > 0 ? (
               <div className="space-y-2">
@@ -1324,11 +1373,13 @@ function ScheduleRow({
                   />
                 ))}
               </div>
-            ) : (
+            ) : canCreateInSlot ? (
               <div className="h-full min-h-[84px] rounded-xl border border-dashed border-transparent flex items-center justify-center text-xs text-transparent hover:text-[#0D7D6D] hover:border-[#0D7D6D]/20">
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Add
               </div>
+            ) : (
+              <div className="h-full min-h-[84px] rounded-xl border border-transparent" />
             )}
           </div>
         );

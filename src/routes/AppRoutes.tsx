@@ -129,10 +129,6 @@ export const router = createBrowserRouter([
         element: <InjuryPrevention />,
       },
       {
-        path: "feedback",
-        element: <AdminFeedback />,
-      },
-      {
         path: "news",
         element: <NewsManagement />,
       },
