@@ -2,6 +2,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
@@ -11,6 +12,8 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Loader2,
   Pencil,
@@ -106,6 +109,15 @@ const gridDays: GridDay[] = [
 ];
 
 const timeSlotHours = Array.from({ length: 16 }, (_, index) => index + 6);
+const SCHEDULE_SLOT_HEIGHT = 104;
+const SCHEDULE_START_HOUR = timeSlotHours[0] ?? 0;
+const SCHEDULE_END_HOUR =
+  (timeSlotHours[timeSlotHours.length - 1] ?? SCHEDULE_START_HOUR) + 1;
+const SCHEDULE_START_MINUTES = SCHEDULE_START_HOUR * 60;
+const SCHEDULE_END_MINUTES = SCHEDULE_END_HOUR * 60;
+const SCHEDULE_TOTAL_HEIGHT = timeSlotHours.length * SCHEDULE_SLOT_HEIGHT;
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DATE_PREFIX_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/;
 
 const emptyForm: SessionFormState = {
   session_date: "",
@@ -248,23 +260,62 @@ function getStatusMeta(value?: string | null): StatusMeta {
   return statusMeta[normalizeStatus(value)];
 }
 
+function parseDateKey(value: string) {
+  const match = value.match(DATE_ONLY_PATTERN);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function toDateInputFromDate(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function getSessionDateKey(value?: string | null) {
+  if (!value) return "";
+
+  const trimmed = String(value).trim();
+
+  if (DATE_ONLY_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  const parsed = new Date(trimmed);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return toDateInputFromDate(parsed);
+  }
+
+  return trimmed.match(DATE_PREFIX_PATTERN)?.[0] ?? "";
+}
+
 function parseSessionDate(value?: string | null) {
-  if (!value) return null;
-
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? `${value}T00:00:00`
-    : value;
-  const parsed = new Date(normalized);
-
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const dateKey = getSessionDateKey(value);
+  return dateKey ? parseDateKey(dateKey) : null;
 }
 
 function getWeekStart(date: Date) {
-  const weekStart = new Date(date);
-  weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-  return weekStart;
+  return startOfDay(addDays(date, -date.getDay()));
 }
 
 function startOfDay(date: Date) {
@@ -285,6 +336,28 @@ function getDateForWeekday(weekStart: Date, dayValue: number) {
 
 function getWeekEnd(weekStart: Date) {
   return addDays(weekStart, 7);
+}
+
+function isSameDate(first: Date, second: Date) {
+  return toDateInputFromDate(first) === toDateInputFromDate(second);
+}
+
+function formatWeekRange(weekStart: Date) {
+  const weekEnd = addDays(weekStart, 6);
+  const sameYear = weekStart.getFullYear() === weekEnd.getFullYear();
+
+  const startLabel = weekStart.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+  const endLabel = weekEnd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `${startLabel} - ${endLabel}`;
 }
 
 function getSessionCalendarDate(session: CoachSession) {
@@ -310,14 +383,6 @@ function isSessionAfterVisibleWeek(session: CoachSession, weekStart: Date) {
   }
 
   return sessionDate >= getWeekEnd(weekStart);
-}
-
-function toDateInputFromDate(date: Date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
 }
 
 function getDayValueFromDate(value: string) {
@@ -435,7 +500,39 @@ function getDurationMinutes(session: CoachSession) {
   return end - start;
 }
 
+function getScheduleBlockPosition(session: CoachSession): CSSProperties | null {
+  const start = timeToMinutes(session.start_time);
+  const end = timeToMinutes(session.end_time);
+
+  if (start === null || end === null || end <= start) {
+    return null;
+  }
+
+  const visibleStart = Math.max(start, SCHEDULE_START_MINUTES);
+  const visibleEnd = Math.min(end, SCHEDULE_END_MINUTES);
+
+  if (visibleEnd <= visibleStart) {
+    return null;
+  }
+
+  const top =
+    ((visibleStart - SCHEDULE_START_MINUTES) / 60) * SCHEDULE_SLOT_HEIGHT;
+  const height =
+    ((visibleEnd - visibleStart) / 60) * SCHEDULE_SLOT_HEIGHT;
+
+  return {
+    top,
+    height: Math.max(height, 1),
+  };
+}
+
 function formatDayOfWeek(session: CoachSession) {
+  const parsedDate = parseSessionDate(session.session_date);
+
+  if (parsedDate) {
+    return dayNames[parsedDate.getDay()];
+  }
+
   const value = session.day_of_week;
 
   if (value !== null && value !== undefined && String(value).trim() !== "") {
@@ -449,11 +546,16 @@ function formatDayOfWeek(session: CoachSession) {
     return toTitleCase(String(value));
   }
 
-  const parsedDate = parseSessionDate(session.session_date);
-  return parsedDate ? dayNames[parsedDate.getDay()] : "";
+  return "";
 }
 
 function getSessionDayValue(session: CoachSession) {
+  const parsedDate = parseSessionDate(session.session_date);
+
+  if (parsedDate) {
+    return parsedDate.getDay();
+  }
+
   const value = session.day_of_week;
 
   if (value !== null && value !== undefined && String(value).trim() !== "") {
@@ -464,18 +566,7 @@ function getSessionDayValue(session: CoachSession) {
     }
   }
 
-  const parsedDate = parseSessionDate(session.session_date);
-  return parsedDate ? parsedDate.getDay() : null;
-}
-
-function getSessionSlotHour(session: CoachSession) {
-  const start = timeToMinutes(session.start_time);
-
-  if (start === null) {
-    return null;
-  }
-
-  return Math.floor(start / 60);
+  return null;
 }
 
 function isRecurring(value: CoachSession["is_recurring"]) {
@@ -518,8 +609,7 @@ function getSessionLabel(session: CoachSession) {
 }
 
 function toDateInput(value?: string | null) {
-  if (!value) return "";
-  return String(value).slice(0, 10);
+  return getSessionDateKey(value);
 }
 
 function toTimeInput(value?: string | null) {
@@ -567,14 +657,15 @@ function buildSessionPayload(
   form: SessionFormState,
   coachId: number
 ): CreateCoachSessionPayload {
-  const dayOfWeek = form.session_date
-    ? getDayValueFromDate(form.session_date)
+  const sessionDate = toDateInput(form.session_date);
+  const dayOfWeek = sessionDate
+    ? getDayValueFromDate(sessionDate)
     : form.day_of_week;
 
   return {
     coach_id: coachId,
     day_of_week: dayOfWeek === "none" ? null : Number(dayOfWeek),
-    session_date: form.session_date || null,
+    session_date: sessionDate || null,
     start_time: form.start_time,
     end_time: form.end_time,
     capacity: Number(form.capacity),
@@ -625,6 +716,9 @@ export function CoachSessions() {
     null
   );
   const [form, setForm] = useState<SessionFormState>(emptyForm);
+  const [visibleWeekStart, setVisibleWeekStart] = useState(() =>
+    getWeekStart(new Date())
+  );
 
   const sessionsQuery = useCoachSessions(coachUserId);
   const createMutation = useCreateCoachSession();
@@ -633,7 +727,10 @@ export function CoachSessions() {
   const deleteMutation = useDeleteCoachSession();
 
   const sessions = sessionsQuery.data ?? EMPTY_SESSIONS;
-  const visibleWeekStart = useMemo(() => getWeekStart(new Date()), []);
+  const isViewingCurrentWeek = isSameDate(
+    visibleWeekStart,
+    getWeekStart(new Date())
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -678,6 +775,18 @@ export function CoachSessions() {
     setForm(emptyForm);
     setFormError("");
     setCreateOpen(true);
+  }
+
+  function showPreviousWeek() {
+    setVisibleWeekStart((current) => getWeekStart(addDays(current, -7)));
+  }
+
+  function showCurrentWeek() {
+    setVisibleWeekStart(getWeekStart(new Date()));
+  }
+
+  function showNextWeek() {
+    setVisibleWeekStart((current) => getWeekStart(addDays(current, 7)));
   }
 
   function openCreateDialogForSlot(dayValue: number, hour: number) {
@@ -927,6 +1036,10 @@ export function CoachSessions() {
           <ScheduleGrid
             sessions={sessions}
             visibleWeekStart={visibleWeekStart}
+            isViewingCurrentWeek={isViewingCurrentWeek}
+            onPreviousWeek={showPreviousWeek}
+            onCurrentWeek={showCurrentWeek}
+            onNextWeek={showNextWeek}
             onEmptySlotClick={openCreateDialogForSlot}
             onSessionClick={(session) => void openDetailsDialog(session)}
           />
@@ -1244,17 +1357,25 @@ function Header({
 function ScheduleGrid({
   sessions,
   visibleWeekStart,
+  isViewingCurrentWeek,
+  onPreviousWeek,
+  onCurrentWeek,
+  onNextWeek,
   onEmptySlotClick,
   onSessionClick,
 }: {
   sessions: CoachSession[];
   visibleWeekStart: Date;
+  isViewingCurrentWeek: boolean;
+  onPreviousWeek: () => void;
+  onCurrentWeek: () => void;
+  onNextWeek: () => void;
   onEmptySlotClick: (dayValue: number, hour: number) => void;
   onSessionClick: (session: CoachSession) => void;
 }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
             Weekly Schedule
@@ -1262,87 +1383,156 @@ function ScheduleGrid({
           <p className="text-xs text-gray-400 mt-1">
             Click an empty slot to create a session, or click a block to manage it.
           </p>
+          <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-600">
+            <CalendarDays className="w-4 h-4 text-[#0D7D6D]" />
+            {formatWeekRange(visibleWeekStart)}
+          </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
-          <Clock className="w-4 h-4 text-gray-400" />
-          6:00 AM - 9:00 PM
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onPreviousWeek}
+              aria-label="Previous week"
+              className="h-8 w-8 rounded-lg border-gray-200 text-gray-600"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCurrentWeek}
+              disabled={isViewingCurrentWeek}
+              className="h-8 rounded-lg border-gray-200 text-gray-600 disabled:bg-gray-50"
+            >
+              Today
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={onNextWeek}
+              aria-label="Next week"
+              className="h-8 w-8 rounded-lg border-gray-200 text-gray-600"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
+            <Clock className="w-4 h-4 text-gray-400" />
+            6:00 AM - 9:00 PM
+          </div>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <div
-          className="min-w-[1120px] grid bg-gray-100"
-          style={{ gridTemplateColumns: "88px repeat(7, minmax(145px, 1fr))" }}
-        >
-          <div className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Time
+        <div className="min-w-[1120px]">
+          <div
+            className="grid bg-gray-100"
+            style={{
+              gridTemplateColumns: "88px repeat(7, minmax(145px, 1fr))",
+            }}
+          >
+            <div className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Time
+            </div>
+
+            {gridDays.map((day) => {
+              const date = getDateForWeekday(visibleWeekStart, day.value);
+
+              return (
+                <div
+                  key={day.value}
+                  className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-center"
+                >
+                  <p className="text-sm font-semibold text-gray-900">
+                    {day.label}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {formatGridDate(date)}
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
-          {gridDays.map((day) => {
-            const date = getDateForWeekday(visibleWeekStart, day.value);
-
-            return (
-            <div
-              key={day.value}
-              className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-center"
-            >
-              <p className="text-sm font-semibold text-gray-900">{day.label}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {formatGridDate(date)}
-              </p>
+          <div
+            className="grid bg-gray-100"
+            style={{
+              gridTemplateColumns: "88px repeat(7, minmax(145px, 1fr))",
+            }}
+          >
+            <div className="bg-white border-r border-gray-100">
+              {timeSlotHours.map((hour) => (
+                <div
+                  key={hour}
+                  className="border-b border-gray-100 px-3 py-4 text-xs font-semibold text-gray-500"
+                  style={{ height: SCHEDULE_SLOT_HEIGHT }}
+                >
+                  {formatHourLabel(hour)}
+                </div>
+              ))}
             </div>
-            );
-          })}
 
-          {timeSlotHours.map((hour) => (
-            <ScheduleRow
-              key={hour}
-              hour={hour}
-              sessions={sessions}
-              visibleWeekStart={visibleWeekStart}
-              onEmptySlotClick={onEmptySlotClick}
-              onSessionClick={onSessionClick}
-            />
-          ))}
+            {gridDays.map((day) => (
+              <ScheduleDayColumn
+                key={day.value}
+                day={day}
+                sessions={sessions}
+                visibleWeekStart={visibleWeekStart}
+                onEmptySlotClick={onEmptySlotClick}
+                onSessionClick={onSessionClick}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ScheduleRow({
-  hour,
+function ScheduleDayColumn({
+  day,
   sessions,
   visibleWeekStart,
   onEmptySlotClick,
   onSessionClick,
 }: {
-  hour: number;
+  day: GridDay;
   sessions: CoachSession[];
   visibleWeekStart: Date;
   onEmptySlotClick: (dayValue: number, hour: number) => void;
   onSessionClick: (session: CoachSession) => void;
 }) {
-  return (
-    <>
-      <div className="bg-white border-r border-b border-gray-100 px-3 py-4 text-xs font-semibold text-gray-500">
-        {formatHourLabel(hour)}
-      </div>
+  const sessionsForDay = sessions
+    .filter(
+      (session) =>
+        isSessionInVisibleWeek(session, visibleWeekStart) &&
+        getSessionDayValue(session) === day.value
+    )
+    .sort(
+      (first, second) =>
+        (timeToMinutes(first.start_time) ?? 0) -
+        (timeToMinutes(second.start_time) ?? 0)
+    );
 
-      {gridDays.map((day) => {
+  return (
+    <div
+      className="relative bg-white"
+      style={{ height: SCHEDULE_TOTAL_HEIGHT }}
+    >
+      {timeSlotHours.map((hour) => {
         const slotDate = getDateForWeekday(visibleWeekStart, day.value);
         const slotIsPast = isPastSlot(slotDate, hourToTime(hour));
-        const sessionsForSlot = sessions.filter(
-          (session) =>
-            isSessionInVisibleWeek(session, visibleWeekStart) &&
-            getSessionDayValue(session) === day.value &&
-            getSessionSlotHour(session) === hour
-        );
         const canCreateInSlot = !slotIsPast;
 
         return (
           <div
-            key={`${day.value}-${hour}`}
+            key={hour}
             role={canCreateInSlot ? "button" : undefined}
             tabIndex={canCreateInSlot ? 0 : undefined}
             onClick={() => {
@@ -1355,45 +1545,56 @@ function ScheduleRow({
                 onEmptySlotClick(day.value, hour);
               }
             }}
-            className={`min-h-[104px] border-r border-b border-gray-100 p-2 transition-colors ${
+            className={`border-r border-b border-gray-100 p-2 transition-colors ${
               canCreateInSlot
                 ? "bg-white cursor-pointer hover:bg-[#E6F4F1]/40 focus:outline-none focus:ring-2 focus:ring-[#0D7D6D]/30 focus:ring-inset"
-                : sessionsForSlot.length > 0
-                  ? "bg-white cursor-default"
-                  : "bg-gray-50 cursor-default"
+                : "bg-gray-50 cursor-default"
             }`}
+            style={{ height: SCHEDULE_SLOT_HEIGHT }}
           >
-            {sessionsForSlot.length > 0 ? (
-              <div className="space-y-2">
-                {sessionsForSlot.map((session) => (
-                  <SessionBlock
-                    key={session.id}
-                    session={session}
-                    onClick={() => onSessionClick(session)}
-                  />
-                ))}
-              </div>
-            ) : canCreateInSlot ? (
-              <div className="h-full min-h-[84px] rounded-xl border border-dashed border-transparent flex items-center justify-center text-xs text-transparent hover:text-[#0D7D6D] hover:border-[#0D7D6D]/20">
+            {canCreateInSlot ? (
+              <div className="h-full rounded-xl border border-dashed border-transparent flex items-center justify-center text-xs text-transparent hover:text-[#0D7D6D] hover:border-[#0D7D6D]/20">
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Add
               </div>
             ) : (
-              <div className="h-full min-h-[84px] rounded-xl border border-transparent" />
+              <div className="h-full rounded-xl border border-transparent" />
             )}
           </div>
         );
       })}
-    </>
+
+      {sessionsForDay.map((session) => {
+        const position = getScheduleBlockPosition(session);
+
+        if (!position) {
+          return null;
+        }
+
+        return (
+          <SessionBlock
+            key={session.id}
+            session={session}
+            onClick={() => onSessionClick(session)}
+            className="absolute left-2 right-2 z-10"
+            style={position}
+          />
+        );
+      })}
+    </div>
   );
 }
 
 function SessionBlock({
   session,
   onClick,
+  className = "",
+  style,
 }: {
   session: CoachSession;
   onClick: () => void;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const bookedCount = getBookedCount(session);
   const capacity = getCapacity(session);
@@ -1407,7 +1608,8 @@ function SessionBlock({
         event.stopPropagation();
         onClick();
       }}
-      className={`w-full text-left rounded-xl border px-3 py-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${meta.blockClassName}`}
+      className={`block text-left rounded-xl border px-3 py-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md overflow-hidden ${meta.blockClassName} ${className}`}
+      style={style}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -1451,7 +1653,7 @@ function UpcomingSessions({
         Upcoming Sessions
       </h3>
       <p className="text-xs text-gray-400 mt-1 mb-4">
-        Future sessions outside the current Sunday-Saturday week.
+        Future sessions after the selected Sunday-Saturday week.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
