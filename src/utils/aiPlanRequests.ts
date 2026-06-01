@@ -17,6 +17,7 @@ export interface PlanWorkoutDay {
 
 export interface ModificationUserFeedback {
   [key: string]: unknown;
+  level?: string;
   difficulty?: string;
   pain_areas?: string[];
   liked_exercises?: string[];
@@ -28,6 +29,25 @@ export interface ModificationUserFeedback {
   severity?: string;
   notes?: string | null;
   status?: string;
+}
+
+export interface RequestSafetySource {
+  sourceId: string | number | null;
+  sourceTable: string | null;
+  sourceName: string;
+  score: number | null;
+  reasonUsed: string | null;
+}
+
+export interface RequestSafetyContext {
+  injuryWarnings: string[];
+  restrictions: string[];
+  alternatives: string[];
+  ragSummary: string | null;
+  sources: RequestSafetySource[];
+  generationMode: string | null;
+  fallbackReason: string | null;
+  debugError: string | null;
 }
 
 export interface ModificationRequestItem {
@@ -49,6 +69,7 @@ export interface ModificationRequestItem {
     schedule: PlanWorkoutDay[];
   };
   recommendations: string[];
+  safetyContext: RequestSafetyContext;
 }
 
 export interface SearchExerciseItem {
@@ -90,12 +111,188 @@ function getStringArray(value: unknown): string[] | undefined {
   return Array.isArray(value) ? value.map((item) => String(item)) : undefined;
 }
 
+function parsePositiveDayNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.trunc(value);
+  }
+
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const directNumber = Number(trimmed);
+  if (Number.isFinite(directNumber) && directNumber > 0) {
+    return Math.trunc(directNumber);
+  }
+
+  const dayMatch = trimmed.match(/\bday\s*#?\s*(\d+)\b/i);
+  if (dayMatch?.[1]) return Number(dayMatch[1]);
+
+  const anyNumberMatch = trimmed.match(/\b(\d+)\b/);
+  return anyNumberMatch?.[1] ? Number(anyNumberMatch[1]) : null;
+}
+
+function parseDayIndex(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" && Number.isFinite(value)
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value.trim())
+        : NaN;
+
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.trunc(parsed) + 1;
+}
+
+export function resolvePlanDayNumber(dayItem: unknown, index: number): number {
+  const source = getObject(dayItem) ?? {};
+
+  return (
+    parsePositiveDayNumber(source.day_number) ??
+    parsePositiveDayNumber(source.day) ??
+    parseDayIndex(source.dayIndex) ??
+    parseDayIndex(source.day_index) ??
+    parsePositiveDayNumber(source.name) ??
+    parsePositiveDayNumber(source.title) ??
+    index + 1
+  );
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+
+  return [];
+}
+
+function uniqueStrings(...groups: string[][]): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+
+  groups.flat().forEach((item) => {
+    const normalized = item.trim();
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) return;
+    seen.add(key);
+    values.push(normalized);
+  });
+
+  return values;
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
+function normalizeSafetySources(value: unknown): RequestSafetySource[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const source = getObject(item);
+      if (!source) return null;
+
+      const sourceName = firstString(
+        source.source_name,
+        source.name,
+        source.title,
+        source.id
+      );
+
+      if (!sourceName) return null;
+
+      const scoreValue = Number(source.score);
+
+      return {
+        sourceId:
+          source.source_id != null
+            ? (source.source_id as string | number)
+            : source.id != null
+              ? (source.id as string | number)
+              : null,
+        sourceTable: firstString(source.source_table, source.table, source.type),
+        sourceName,
+        score: Number.isFinite(scoreValue) ? scoreValue : null,
+        reasonUsed: firstString(source.reason_used, source.reason, source.preview),
+      };
+    })
+    .filter((item): item is RequestSafetySource => item !== null);
+}
+
+function uniqueSafetySources(
+  ...groups: RequestSafetySource[][]
+): RequestSafetySource[] {
+  const seen = new Set<string>();
+  const sources: RequestSafetySource[] = [];
+
+  groups.flat().forEach((source) => {
+    const key = String(source.sourceId ?? source.sourceName).toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    sources.push(source);
+  });
+
+  return sources;
+}
+
+export function extractRequestSafetyContext(raw: any): RequestSafetyContext {
+  const modifiedPlan = getObject(raw?.modified_plan);
+
+  return {
+    injuryWarnings: uniqueStrings(
+      normalizeStringArray(raw?.injury_warnings),
+      normalizeStringArray(modifiedPlan?.injury_warnings)
+    ),
+    restrictions: uniqueStrings(
+      normalizeStringArray(raw?.restrictions),
+      normalizeStringArray(raw?.exercise_restrictions),
+      normalizeStringArray(modifiedPlan?.restrictions),
+      normalizeStringArray(modifiedPlan?.exercise_restrictions)
+    ),
+    alternatives: uniqueStrings(
+      normalizeStringArray(raw?.alternatives),
+      normalizeStringArray(raw?.ai_alternatives),
+      normalizeStringArray(modifiedPlan?.alternatives),
+      normalizeStringArray(modifiedPlan?.ai_alternatives)
+    ),
+    ragSummary: firstString(raw?.rag_summary, modifiedPlan?.rag_summary),
+    sources: uniqueSafetySources(
+      normalizeSafetySources(raw?.sources),
+      normalizeSafetySources(modifiedPlan?.sources)
+    ),
+    generationMode: firstString(raw?.generation_mode, modifiedPlan?.generation_mode),
+    fallbackReason: firstString(raw?.fallback_reason, modifiedPlan?.fallback_reason),
+    debugError: firstString(
+      raw?.rag_debug_error_message,
+      modifiedPlan?.rag_debug_error_message,
+      raw?.rag_debug_error_type,
+      modifiedPlan?.rag_debug_error_type
+    ),
+  };
+}
+
 function normalizeUserFeedback(raw: unknown): ModificationUserFeedback | undefined {
   const source = getObject(raw);
   if (!source) return undefined;
 
   const feedback: ModificationUserFeedback = { ...source };
 
+  feedback.level = getString(source.level);
   feedback.difficulty = getString(source.difficulty);
   feedback.pain_areas = getStringArray(source.pain_areas);
   feedback.liked_exercises = getStringArray(source.liked_exercises);
@@ -209,7 +406,7 @@ export function normalizeTrainingModificationRequestsResponse(
     const schedule: PlanWorkoutDay[] = (
       Array.isArray(modifiedPlanSource) ? modifiedPlanSource : []
     ).map((dayItem: any, index: number) => {
-      const dayNumber = Number(dayItem?.day ?? dayItem?.day_number ?? index + 1);
+      const dayNumber = resolvePlanDayNumber(dayItem, index);
 
       const exercises: PlanExercise[] = (
         Array.isArray(dayItem?.exercises) ? dayItem.exercises : []
@@ -251,6 +448,16 @@ export function normalizeTrainingModificationRequestsResponse(
       item?.program_version_id ??
       "";
 
+    const changesSummary = uniqueStrings(
+      normalizeStringArray(item?.changes_summary),
+      normalizeStringArray(item?.modified_plan?.changes_summary)
+    );
+
+    const recommendations = uniqueStrings(
+      normalizeStringArray(item?.recommendations),
+      normalizeStringArray(item?.modified_plan?.recommendations)
+    );
+
     return {
       id: Number(item?.id ?? item?.modification_request_id ?? 0),
       planId: rawPlanId != null ? String(rawPlanId) : "",
@@ -277,29 +484,36 @@ export function normalizeTrainingModificationRequestsResponse(
         item?.user_request ?? item?.modification_request
       ),
       userFeedback,
-      changesSummary: Array.isArray(item?.changes_summary)
-        ? item.changes_summary.map((entry: any) => String(entry))
-        : [],
+      changesSummary,
       modifiedPlan: {
         duration,
         schedule,
       },
-      recommendations: Array.isArray(item?.recommendations)
-        ? item.recommendations.map((entry: any) => String(entry))
-        : [],
+      recommendations,
+      safetyContext: extractRequestSafetyContext(item),
     };
   });
 }
 
 export function normalizeSearchExercisesResponse(raw: any): SearchExerciseItem[] {
-  const results = Array.isArray(raw?.results) ? raw.results : [];
+  const results = Array.isArray(raw?.results)
+    ? raw.results
+    : Array.isArray(raw?.data?.results)
+      ? raw.data.results
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
 
   return results.map((item: any) => ({
-    id: Number(item?.metadata?.id ?? 0),
-    name: String(item?.metadata?.name ?? "Exercise"),
-    difficulty: String(item?.metadata?.difficulty ?? "beginner"),
+    id: Number(item?.metadata?.id ?? item?.source_id ?? item?.id ?? 0),
+    name: String(
+      item?.metadata?.name ?? item?.source_name ?? item?.name ?? "Exercise"
+    ),
+    difficulty: String(item?.metadata?.difficulty ?? item?.difficulty ?? "beginner"),
     muscleGroup: item?.metadata?.muscle_group
       ? String(item.metadata.muscle_group)
+      : item?.muscle_group
+        ? String(item.muscle_group)
       : null,
   }));
 }

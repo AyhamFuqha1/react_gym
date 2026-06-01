@@ -68,7 +68,7 @@ export async function getPendingTrainingPlans(): Promise<PendingTrainingPlanItem
 
   const liteRequests = normalizeTrainingModificationRequestsResponse(
     modRequestsResponse.data
-  ) as ModificationRequestLite[];
+  ) as unknown as ModificationRequestLite[];
 
   return normalizePendingTrainingPlansResponse(plansResponse.data, liteRequests);
 }
@@ -80,9 +80,17 @@ export async function saveEditedTrainingPlan(plan: PendingTrainingPlanItem) {
 }
 
 export async function searchExercises(
-  query: string
+  query: string,
+  nResults = 10
 ): Promise<SearchExerciseItem[]> {
-  const response = await api.post("/search-exercises", { query });
+  const payload = {
+    query: query.trim(),
+    n_results: nResults,
+  };
+
+  const response = await api.post("/search-exercises", payload, {
+    params: payload,
+  });
   return normalizeSearchExercisesResponse(response.data);
 }
 

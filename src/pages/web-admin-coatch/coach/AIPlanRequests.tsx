@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   ChevronDown,
@@ -27,12 +29,22 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import {
   buildModificationUserRequest,
+  extractRequestSafetyContext,
   isInjuryModificationRequest,
+  resolvePlanDayNumber,
   type ModificationUserFeedback,
   type ModificationRequestItem,
+  type RequestSafetyContext,
   type SearchExerciseItem,
 } from "../../../utils/aiPlanRequests";
-import { getModificationRequestById, searchExercises } from "../../../services/aiPlanRequests";
+import {
+  getAllUserInjuries,
+  getModificationRequestById,
+  getUserProfilesByUserIds,
+  searchExercises,
+  type UserInjuryContext,
+  type UserProfileContext,
+} from "../../../services/aiPlanRequests";
 import { useTrainingModificationRequests } from "../../../hooks/aiPlanRequests/queries/useTrainingModificationRequests";
 import { useApproveTrainingModification } from "../../../hooks/aiPlanRequests/mutations/useApproveTrainingModification";
 import { useUpdateModificationRequest } from "../../../hooks/aiPlanRequests/mutations/useUpdateModificationRequest";
@@ -110,7 +122,12 @@ type DetailApiExercise = {
 };
 
 type DetailApiDay = {
-  day: number;
+  day?: unknown;
+  day_number?: unknown;
+  dayIndex?: unknown;
+  day_index?: unknown;
+  name?: unknown;
+  title?: unknown;
   focus?: string;
   exercises: DetailApiExercise[];
 };
@@ -151,6 +168,9 @@ type DetailApiResponse = {
 type EnrichedModificationRequestItem = ModificationRequestItem & {
   displayGoal: string;
   displayTargetWeight: string;
+  displayLevel: string;
+  activeInjuries: UserInjuryContext[];
+  profile: UserProfileContext | null;
 };
 
 function toTitleCase(value: string) {
@@ -193,6 +213,325 @@ function formatRequestDate(value?: string | null) {
   });
 }
 
+function emptySafetyContext(): RequestSafetyContext {
+  return {
+    injuryWarnings: [],
+    restrictions: [],
+    alternatives: [],
+    ragSummary: null,
+    sources: [],
+    generationMode: null,
+    fallbackReason: null,
+    debugError: null,
+  };
+}
+
+function mergeSafetyContexts(
+  primary?: RequestSafetyContext | null,
+  fallback?: RequestSafetyContext | null
+): RequestSafetyContext {
+  const safePrimary = primary ?? emptySafetyContext();
+  const safeFallback = fallback ?? emptySafetyContext();
+
+  return {
+    injuryWarnings: uniqueItems([
+      ...safePrimary.injuryWarnings,
+      ...safeFallback.injuryWarnings,
+    ]),
+    restrictions: uniqueItems([
+      ...safePrimary.restrictions,
+      ...safeFallback.restrictions,
+    ]),
+    alternatives: uniqueItems([
+      ...safePrimary.alternatives,
+      ...safeFallback.alternatives,
+    ]),
+    ragSummary: safePrimary.ragSummary ?? safeFallback.ragSummary,
+    sources: [...safePrimary.sources, ...safeFallback.sources].filter(
+      (source, index, sources) => {
+        const key = String(source.sourceId ?? source.sourceName).toLowerCase();
+        return (
+          sources.findIndex(
+            (item) =>
+              String(item.sourceId ?? item.sourceName).toLowerCase() === key
+          ) === index
+        );
+      }
+    ),
+    generationMode: safePrimary.generationMode ?? safeFallback.generationMode,
+    fallbackReason: safePrimary.fallbackReason ?? safeFallback.fallbackReason,
+    debugError: safePrimary.debugError ?? safeFallback.debugError,
+  };
+}
+
+function formatSafetySource(source: RequestSafetyContext["sources"][number]) {
+  const parts = [source.sourceName];
+
+  if (source.sourceTable) parts.push(toTitleCase(source.sourceTable));
+  if (source.score !== null) parts.push(`Score ${source.score.toFixed(2)}`);
+  if (source.reasonUsed) parts.push(source.reasonUsed);
+
+  return parts.join(" - ");
+}
+
+function isActiveStatus(value?: string | null) {
+  return String(value ?? "").trim().toLowerCase() === "active";
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const data = error.response?.data;
+
+  if (typeof data?.message === "string") return data.message;
+  if (typeof data?.error === "string") return data.error;
+  if (typeof data?.detail === "string") return data.detail;
+
+  if (Array.isArray(data?.detail)) {
+    const message = data.detail
+      .map((item: unknown) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const record = item as Record<string, unknown>;
+          return typeof record.msg === "string" ? record.msg : "";
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join(" ");
+
+    if (message) return message;
+  }
+
+  return fallback;
+}
+
+function parseMaybeJson(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function stringifyContextValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "string") {
+    const parsed = parseMaybeJson(value);
+    if (parsed !== value) return stringifyContextValue(parsed);
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stringifyContextValue(item))
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const preferredKeys = [
+      "text",
+      "message",
+      "summary",
+      "warning",
+      "restriction",
+      "alternative",
+      "description",
+      "name",
+      "title",
+    ];
+
+    for (const key of preferredKeys) {
+      const displayValue = stringifyContextValue(record[key]);
+      if (displayValue) return displayValue;
+    }
+
+    return Object.entries(record)
+      .map(([key, entry]) => {
+        const displayValue = stringifyContextValue(entry);
+        return displayValue ? `${toTitleCase(key)}: ${displayValue}` : "";
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return "";
+}
+
+function toContextItems(value: unknown): string[] {
+  if (value === null || value === undefined) return [];
+
+  if (typeof value === "string") {
+    const parsed = parseMaybeJson(value);
+    if (parsed !== value) return toContextItems(parsed);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stringifyContextValue(item))
+      .filter(Boolean);
+  }
+
+  const displayValue = stringifyContextValue(value);
+  return displayValue ? [displayValue] : [];
+}
+
+function uniqueItems(items: string[]) {
+  return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
+}
+
+function isSafetyRelatedChange(value: string) {
+  const normalized = value.toLowerCase();
+
+  return (
+    normalized.includes("safety guard") ||
+    normalized.includes("replaced") ||
+    normalized.includes("avoid") ||
+    normalized.includes("shoulder pain") ||
+    normalized.includes("lower back") ||
+    /\bknee\b/.test(normalized)
+  );
+}
+
+function getNestedValue(source: unknown, keyPath: string) {
+  if (!source || typeof source !== "object") return undefined;
+
+  return keyPath.split(".").reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string, unknown>)[key];
+  }, source);
+}
+
+function collectContextItems(sources: unknown[], keyPaths: string[]) {
+  return uniqueItems(
+    sources.flatMap((source) =>
+      keyPaths.flatMap((keyPath) => toContextItems(getNestedValue(source, keyPath)))
+    )
+  );
+}
+
+function buildSafetyContextGroups(
+  detail: DetailApiResponse | undefined,
+  request: ModificationRequestItem,
+  feedback: ModificationUserFeedback | undefined
+) {
+  const detailSafetyContext = detail ? extractRequestSafetyContext(detail) : null;
+  const safetyContext = mergeSafetyContexts(
+    detailSafetyContext,
+    request.safetyContext
+  );
+  const sources = [
+    detail,
+    detail?.modified_plan,
+    detail?.modified_plan?.plan_data,
+    feedback,
+    request.userFeedback,
+  ];
+  const ragAndSourceItems = uniqueItems([
+    ...(safetyContext.ragSummary ? [safetyContext.ragSummary] : []),
+    ...safetyContext.sources.map(formatSafetySource),
+    ...(safetyContext.generationMode
+      ? [`Generation mode: ${safetyContext.generationMode}`]
+      : []),
+    ...(safetyContext.fallbackReason
+      ? [`Fallback reason: ${safetyContext.fallbackReason}`]
+      : []),
+    ...(safetyContext.debugError ? [`AI debug: ${safetyContext.debugError}`] : []),
+    ...collectContextItems(sources, [
+      "rag_summary",
+      "rag_context",
+      "sources",
+      "source_documents",
+      "generation_mode",
+      "fallback_reason",
+    ]),
+  ]);
+  const safetyChanges = uniqueItems([
+    ...request.changesSummary,
+    ...toContextItems(detail?.changes_summary),
+  ]).filter(isSafetyRelatedChange);
+
+  return [
+    {
+      title: "Warnings",
+      items: uniqueItems([
+        ...safetyContext.injuryWarnings,
+        ...collectContextItems(sources, [
+          "injury_warnings",
+          "safety_warnings",
+          "exercise_warnings",
+          "warnings",
+          "warning",
+          "modified_plan.injury_warnings",
+          "modified_plan.safety_warnings",
+          "modified_plan.warnings",
+        ]),
+      ]),
+      itemClassName: "bg-amber-100 border-amber-200 text-amber-800",
+    },
+    {
+      title: "Restrictions",
+      items: uniqueItems([
+        ...safetyContext.restrictions,
+        ...collectContextItems(sources, [
+          "restrictions",
+          "exercise_restrictions",
+          "movement_restrictions",
+          "avoid_exercises",
+          "modified_plan.restrictions",
+          "modified_plan.exercise_restrictions",
+        ]),
+      ]),
+      itemClassName: "bg-rose-100 border-rose-200 text-rose-800",
+    },
+    {
+      title: "Alternatives",
+      items: uniqueItems([
+        ...safetyContext.alternatives,
+        ...collectContextItems(sources, [
+          "alternatives",
+          "ai_alternatives",
+          "exercise_alternatives",
+          "alternative_exercises",
+          "modified_plan.alternatives",
+          "modified_plan.ai_alternatives",
+        ]),
+      ]),
+      itemClassName: "bg-emerald-100 border-emerald-200 text-emerald-800",
+    },
+    {
+      title: "Safety Changes",
+      items: safetyChanges,
+      itemClassName: "bg-amber-100 border-amber-200 text-amber-800",
+    },
+    {
+      title: "Changed Exercises",
+      items: collectContextItems(sources, [
+        "changed_exercises",
+        "exercise_changes",
+        "changedExercises",
+        "modified_plan.changed_exercises",
+      ]),
+      itemClassName: "bg-blue-100 border-blue-200 text-blue-800",
+    },
+    {
+      title: "RAG / Sources",
+      items: ragAndSourceItems,
+      itemClassName: "bg-cyan-100 border-cyan-200 text-cyan-800",
+    },
+  ];
+}
+
 export function AIPlanRequests() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRequest, setExpandedRequest] = useState<number | null>(null);
@@ -216,6 +555,8 @@ export function AIPlanRequests() {
   const [modExerciseResultsByDay, setModExerciseResultsByDay] = useState<
     Record<string, SearchExerciseItem[]>
   >({});
+  const [modExerciseSearchMessagesByDay, setModExerciseSearchMessagesByDay] =
+    useState<Record<string, string>>({});
   const [modExerciseSearchLoadingKey, setModExerciseSearchLoadingKey] = useState<
     string | null
   >(null);
@@ -226,6 +567,29 @@ export function AIPlanRequests() {
     isFetching,
     refetch: refetchModificationRequests,
   } = useTrainingModificationRequests();
+
+  const requestUserIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        modificationRequests
+          .map((request) => Number(request.userId ?? 0))
+          .filter((userId) => Number.isFinite(userId) && userId > 0)
+      )
+    );
+  }, [modificationRequests]);
+
+  const { data: userInjuries = [] } = useQuery({
+    queryKey: ["ai-plan-request-user-injuries"],
+    queryFn: getAllUserInjuries,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const { data: userProfilesById = {} } = useQuery({
+    queryKey: ["ai-plan-request-user-profiles", requestUserIds.join(",")],
+    queryFn: () => getUserProfilesByUserIds(requestUserIds),
+    enabled: requestUserIds.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
 
   const approveMutation = useApproveTrainingModification();
   const updateMutation = useUpdateModificationRequest();
@@ -254,17 +618,42 @@ export function AIPlanRequests() {
     return map;
   }, [userGoals]);
 
+  const activeInjuriesByUserId = useMemo(() => {
+    const map = new Map<number, UserInjuryContext[]>();
+
+    userInjuries.forEach((injury) => {
+      if (!isActiveStatus(injury.status)) return;
+
+      const userId = Number(injury.user_id ?? 0);
+      if (!userId) return;
+
+      const current = map.get(userId) ?? [];
+      current.push(injury);
+      map.set(userId, current);
+    });
+
+    return map;
+  }, [userInjuries]);
+
   const enrichedRequests = useMemo<EnrichedModificationRequestItem[]>(() => {
     return modificationRequests.map((request) => {
-      const goalInfo = goalsMap.get(Number(request.userId ?? 0));
+      const userId = Number(request.userId ?? 0);
+      const goalInfo = goalsMap.get(userId);
+      const profile = userProfilesById[userId] ?? null;
+      const profileLevel = profile?.activity_level
+        ? toTitleCase(String(profile.activity_level))
+        : "";
 
       return {
         ...request,
         displayGoal: goalInfo?.goal ?? "No goal",
         displayTargetWeight: goalInfo?.targetWeight ?? "",
+        displayLevel: profileLevel || "N/A",
+        activeInjuries: activeInjuriesByUserId.get(userId) ?? [],
+        profile,
       };
     });
-  }, [modificationRequests, goalsMap]);
+  }, [modificationRequests, goalsMap, activeInjuriesByUserId, userProfilesById]);
 
   const filteredRequests = useMemo(() => {
     return enrichedRequests.filter((request) => {
@@ -344,7 +733,8 @@ export function AIPlanRequests() {
       }));
 
       const schedule =
-        full?.modified_plan?.plan_data?.schedule?.map((dayItem) => {
+        full?.modified_plan?.plan_data?.schedule?.map((dayItem, index) => {
+          const dayNumber = resolvePlanDayNumber(dayItem, index);
           const exercises = (dayItem.exercises ?? []).map((exercise) => ({
             exerciseId: Number(exercise.exercise_id ?? 0),
             name: String(exercise.name ?? "Exercise"),
@@ -353,16 +743,12 @@ export function AIPlanRequests() {
             sets: Number(exercise.sets ?? 0),
             reps: String(exercise.reps ?? ""),
             restSeconds: Number(exercise.rest_seconds ?? 0),
-            dayNumber: Number(dayItem.day ?? 1),
+            dayNumber,
           }));
 
           return {
-            day: Number(dayItem.day ?? 1),
-            title: guessDayTitle(
-              Number(dayItem.day ?? 1),
-              exercises,
-              dayItem.focus
-            ),
+            day: dayNumber,
+            title: guessDayTitle(dayNumber, exercises, dayItem.focus),
             exercises,
           };
         }) ?? [];
@@ -375,6 +761,7 @@ export function AIPlanRequests() {
             full?.modified_plan?.plan_id ?? full?.program_version_id ?? item.planId;
           const requestSource = String(full?.source ?? item.source).toLowerCase();
           const detailFeedback = full?.user_feedback ?? item.userFeedback;
+          const detailSafetyContext = extractRequestSafetyContext(full);
 
           return {
             ...item,
@@ -404,6 +791,10 @@ export function AIPlanRequests() {
             recommendations: Array.isArray(full?.recommendations)
               ? full.recommendations.map((x) => String(x))
               : item.recommendations,
+            safetyContext: mergeSafetyContexts(
+              detailSafetyContext,
+              item.safetyContext
+            ),
             modifiedPlan: {
               duration:
                 full?.modified_plan?.plan_data?.duration_weeks != null
@@ -503,10 +894,20 @@ export function AIPlanRequests() {
     const key = `mod-${requestId}-${dayNumber}`;
     const query = modExerciseSearchByDay[key]?.trim();
 
-    if (!query) return;
+    if (!query) {
+      setModExerciseSearchMessagesByDay((current) => ({
+        ...current,
+        [key]: "Enter an exercise search term.",
+      }));
+      return;
+    }
 
     try {
       setModExerciseSearchLoadingKey(key);
+      setModExerciseSearchMessagesByDay((current) => ({
+        ...current,
+        [key]: "",
+      }));
       const results = await searchExercises(query);
 
       const currentRequest = modificationRequests.find(
@@ -527,9 +928,26 @@ export function AIPlanRequests() {
         ...current,
         [key]: filteredResults,
       }));
+
+      setModExerciseSearchMessagesByDay((current) => ({
+        ...current,
+        [key]:
+          filteredResults.length > 0
+            ? ""
+            : `No new exercises found for "${query}".`,
+      }));
     } catch (error) {
       console.error(error);
-      setToast({ type: "error", message: "Failed to search exercises." });
+      const message = getApiErrorMessage(error, "Failed to search exercises.");
+      setModExerciseResultsByDay((current) => ({
+        ...current,
+        [key]: [],
+      }));
+      setModExerciseSearchMessagesByDay((current) => ({
+        ...current,
+        [key]: message,
+      }));
+      setToast({ type: "error", message });
     } finally {
       setModExerciseSearchLoadingKey(null);
     }
@@ -781,6 +1199,35 @@ export function AIPlanRequests() {
                     feedback?.notes ||
                     feedback?.status
                 );
+              const activeInjuryNames = modRequest.activeInjuries
+                .map((injury) => injury.injury_type)
+                .filter(Boolean);
+              const displayPainAreas =
+                activeInjuryNames.length > 0
+                  ? activeInjuryNames
+                  : feedback?.pain_areas ?? [];
+              const displayDifficulty = feedback?.difficulty
+                ? toTitleCase(feedback.difficulty)
+                : "N/A";
+              const detailLevel = detail?.program_version?.level
+                ? toTitleCase(detail.program_version.level)
+                : "";
+              const feedbackLevel = feedback?.level
+                ? toTitleCase(feedback.level)
+                : "";
+              const displayLevel =
+                detailLevel || feedbackLevel || modRequest.displayLevel || "N/A";
+              const safetyContextGroups = buildSafetyContextGroups(
+                detail,
+                modRequest,
+                feedback
+              );
+              const hasSafetyContext = safetyContextGroups.some(
+                (group) => group.items.length > 0
+              );
+              const hasInjurySafetyContext = safetyContextGroups
+                .filter((group) => group.title !== "RAG / Sources")
+                .some((group) => group.items.length > 0);
 
               return (
                 <div
@@ -859,6 +1306,13 @@ export function AIPlanRequests() {
                               <strong className="text-[#111827]">
                                 {modRequest.displayTargetWeight}
                               </strong>
+                            </div>
+                          ) : null}
+
+                          {activeInjuryNames.length > 0 ? (
+                            <div className="mt-2 text-sm text-rose-700">
+                              Active Injuries:{" "}
+                              <strong>{activeInjuryNames.join(", ")}</strong>
                             </div>
                           ) : null}
                         </div>
@@ -971,9 +1425,33 @@ export function AIPlanRequests() {
                                 <span className="font-semibold text-[#111827]">
                                   Level:
                                 </span>{" "}
-                                {detail?.program_version?.level ?? "N/A"}
+                                {displayLevel}
                               </div>
                             </div>
+
+                            {modRequest.profile?.preferences ? (
+                              <div className="flex items-start gap-2">
+                                <Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />
+                                <div>
+                                  <span className="font-semibold text-[#111827]">
+                                    Profile Preferences:
+                                  </span>{" "}
+                                  {modRequest.profile.preferences}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {modRequest.profile?.medical_conditions ? (
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 mt-0.5 text-gray-500" />
+                                <div>
+                                  <span className="font-semibold text-[#111827]">
+                                    Medical Conditions:
+                                  </span>{" "}
+                                  {modRequest.profile.medical_conditions}
+                                </div>
+                              </div>
+                            ) : null}
 
                             {hasInjuryContext ? (
                               <>
@@ -1045,6 +1523,31 @@ export function AIPlanRequests() {
                               </>
                             ) : null}
 
+                            {modRequest.activeInjuries.length > 0 ? (
+                              <>
+                                <div className="border-t border-gray-100 pt-3">
+                                  <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
+                                    Active Injuries
+                                  </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                  {modRequest.activeInjuries.map((injury) => (
+                                    <span
+                                      key={injury.id}
+                                      className="px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 break-words"
+                                    >
+                                      {injury.injury_type}
+                                      {injury.severity
+                                        ? ` - ${toTitleCase(injury.severity)}`
+                                        : ""}
+                                      {injury.notes ? ` (${injury.notes})` : ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              </>
+                            ) : null}
+
                             {!isInjuryRequest ? (
                               <>
                                 <div className="flex items-start gap-2">
@@ -1053,7 +1556,7 @@ export function AIPlanRequests() {
                                     <span className="font-semibold text-[#111827]">
                                       Difficulty:
                                     </span>{" "}
-                                    {feedback?.difficulty ?? "N/A"}
+                                    {displayDifficulty}
                                   </div>
                                 </div>
 
@@ -1063,8 +1566,8 @@ export function AIPlanRequests() {
                                     <span className="font-semibold text-[#111827]">
                                       Pain Areas:
                                     </span>{" "}
-                                    {feedback?.pain_areas?.length
-                                      ? feedback.pain_areas.join(", ")
+                                    {displayPainAreas.length
+                                      ? displayPainAreas.join(", ")
                                       : "None"}
                                   </div>
                                 </div>
@@ -1095,7 +1598,7 @@ export function AIPlanRequests() {
                                   ))
                                 ) : (
                                   <span className="text-gray-500">
-                                    No preferred exercises.
+                                    No request-level preferred exercises.
                                   </span>
                                 )}
                               </div>
@@ -1117,7 +1620,7 @@ export function AIPlanRequests() {
                                   ))
                                 ) : (
                                   <span className="text-gray-500">
-                                    No avoided exercises.
+                                    No request-level avoided exercises.
                                   </span>
                                 )}
                               </div>
@@ -1125,6 +1628,64 @@ export function AIPlanRequests() {
                           </div>
                         </SectionCard>
                       </div>
+
+                      <SectionCard
+                        icon={<ShieldAlert className="w-5 h-5 text-amber-600" />}
+                        title="AI Safety Context"
+                        titleClassName="text-amber-700"
+                        wrapperClassName={
+                          hasSafetyContext
+                            ? "bg-amber-50 border-amber-200"
+                            : "bg-white border-gray-200"
+                        }
+                      >
+                        {hasSafetyContext ? (
+                          <div className="space-y-4">
+                            {safetyContextGroups
+                              .filter((group) => group.items.length > 0)
+                              .map((group) => (
+                                <div key={group.title}>
+                                  <p className="font-semibold text-[#111827] mb-2 text-sm">
+                                    {group.title}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {group.items.map((item, idx) => (
+                                      <span
+                                        key={`${group.title}-${idx}`}
+                                        className={`px-3 py-1.5 rounded-lg border text-sm break-words ${group.itemClassName}`}
+                                      >
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+
+                            {modRequest.activeInjuries.length > 0 &&
+                            !hasInjurySafetyContext ? (
+                              <p className="text-sm text-amber-700 font-semibold">
+                                Active injuries exist, but the AI response did not
+                                return injury-specific warnings, restrictions,
+                                alternatives, or changed-exercise details.
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <p>
+                              No AI injury warnings, restrictions, alternatives, or
+                              changed-exercise details were returned for this request.
+                            </p>
+                            {modRequest.activeInjuries.length > 0 ? (
+                              <p className="text-amber-700 font-semibold">
+                                Active injuries exist for this member, so coach review
+                                should treat the generated exercises as needing manual
+                                safety screening.
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
+                      </SectionCard>
 
                       <SectionCard
                         icon={<Sparkles className="w-5 h-5 text-cyan-600" />}
@@ -1336,18 +1897,26 @@ export function AIPlanRequests() {
                                     const dayKey = `mod-${modRequest.id}-${daySchedule.day}`;
                                     const searchResults =
                                       modExerciseResultsByDay[dayKey] ?? [];
+                                    const searchMessage =
+                                      modExerciseSearchMessagesByDay[dayKey] ?? "";
 
                                     return (
                                       <>
                                         <div className="flex flex-col sm:flex-row gap-3">
                                           <Input
                                             value={modExerciseSearchByDay[dayKey] ?? ""}
-                                            onChange={(e) =>
+                                            onChange={(e) => {
                                               setModExerciseSearchByDay((current) => ({
                                                 ...current,
                                                 [dayKey]: e.target.value,
-                                              }))
-                                            }
+                                              }));
+                                              setModExerciseSearchMessagesByDay(
+                                                (current) => ({
+                                                  ...current,
+                                                  [dayKey]: "",
+                                                })
+                                              );
+                                            }}
                                             placeholder="Search exercises to add..."
                                             className="bg-white border-gray-200 text-[#111827]"
                                           />
@@ -1370,6 +1939,12 @@ export function AIPlanRequests() {
                                             )}
                                           </Button>
                                         </div>
+
+                                        {searchMessage ? (
+                                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                                            {searchMessage}
+                                          </div>
+                                        ) : null}
 
                                         {searchResults.length > 0 ? (
                                           <div className="grid gap-2">
