@@ -23,13 +23,14 @@ import {
 import { useFeedbackDashboard } from "../../../hooks/feedback/queries/useFeedbackDashboard";
 import { useUpdateFeedback } from "../../../hooks/feedback/mutations/useUpdateFeedback";
 import { useDeleteFeedback } from "../../../hooks/feedback/mutations/useDeleteFeedback";
+import { useTranslation } from "../../../i18n";
 
 type TabType = "equipment" | "ratings" | "suggestions";
 type FilterType = "all" | "pending" | "in_progress" | "resolved";
 type ToastState = { type: "success" | "error"; message: string } | null;
 
-function getErrorMessage(error: unknown) {
-  if (!error) return "Something went wrong. Please try again.";
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!error) return fallback;
   if (typeof error === "string") return error;
   if (error instanceof Error && error.message) return error.message;
 
@@ -61,10 +62,11 @@ function getErrorMessage(error: unknown) {
     if (typeof firstError === "string") return firstError;
   }
 
-  return "Something went wrong. Please try again.";
+  return fallback;
 }
 
 export function AdminFeedback() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>("equipment");
   const [statusFilter, setStatusFilter] = useState<FilterType>("all");
   const [deleteTarget, setDeleteTarget] = useState<FeedbackItem | null>(null);
@@ -109,22 +111,22 @@ export function AdminFeedback() {
   const tabs = [
     {
       id: "equipment" as TabType,
-      label: "Equipment Issues",
+      label: t("feedback.equipmentIssues"),
       count: equipmentReports.filter((r) => r.details?.status === "pending").length,
     },
     {
       id: "ratings" as TabType,
-      label: "Trainer Ratings",
+      label: t("feedback.trainerRatings"),
       count: null,
     },
     {
       id: "suggestions" as TabType,
-      label: "Suggestions",
+      label: t("feedback.suggestions"),
       count: suggestions.length,
     },
   ];
 
-  const errorMessage = getErrorMessage(error);
+  const errorMessage = getErrorMessage(error, t("feedback.safeError"));
 
   async function handleStatusChange(item: FeedbackItem, status: string) {
     try {
@@ -132,11 +134,11 @@ export function AdminFeedback() {
         id: item.id,
         payload: { status },
       });
-      setToast({ type: "success", message: "Feedback status updated." });
+      setToast({ type: "success", message: t("feedback.statusUpdated") });
     } catch (mutationError) {
       setToast({
         type: "error",
-        message: getErrorMessage(mutationError),
+        message: getErrorMessage(mutationError, t("feedback.safeError")),
       });
     }
   }
@@ -146,12 +148,12 @@ export function AdminFeedback() {
 
     try {
       await deleteFeedbackMutation.mutateAsync(deleteTarget.id);
-      setToast({ type: "success", message: "Feedback deleted." });
+      setToast({ type: "success", message: t("feedback.deleted") });
       setDeleteTarget(null);
     } catch (mutationError) {
       setToast({
         type: "error",
-        message: getErrorMessage(mutationError),
+        message: getErrorMessage(mutationError, t("feedback.safeError")),
       });
     }
   }
@@ -160,10 +162,10 @@ export function AdminFeedback() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-          Feedback & Reports
+          {t("feedback.title")}
         </h1>
         <p className="text-gray-400 text-sm mt-1">
-          Manage member feedback and equipment reports
+          {t("feedback.subtitle")}
         </p>
       </div>
 
@@ -209,7 +211,7 @@ export function AdminFeedback() {
       {loading ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center justify-center text-gray-500">
           <Loader2 className="animate-spin mr-2" size={18} />
-          Loading...
+          {t("common.loading")}
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
@@ -221,7 +223,7 @@ export function AdminFeedback() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
                 <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-                  Equipment Reports
+                  {t("feedback.equipmentReports")}
                 </h3>
 
                 <Select
@@ -233,10 +235,10 @@ export function AdminFeedback() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="all">{t("common.allStatus")}</SelectItem>
+                    <SelectItem value="pending">{t("common.pending")}</SelectItem>
+                    <SelectItem value="in_progress">{t("common.inProgress")}</SelectItem>
+                    <SelectItem value="resolved">{t("common.resolved")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -244,7 +246,7 @@ export function AdminFeedback() {
               <div className="p-5 space-y-3">
                 {equipmentReports.length === 0 ? (
                   <div className="text-sm text-gray-400 text-center py-8">
-                    No equipment reports found.
+                    {t("feedback.noEquipmentReports")}
                   </div>
                 ) : (
                   equipmentReports.map((report) => {
@@ -279,10 +281,10 @@ export function AdminFeedback() {
                               <p className="font-semibold text-gray-800">
                                 {report.details?.equipment_name ||
                                   report.details?.name ||
-                                  "Equipment report"}
+                                  t("feedback.equipmentReport")}
                               </p>
                               <p className="text-xs text-gray-400">
-                                Reported by {report.user_name}
+                                {t("feedback.reportedBy")} {report.user_name}
                               </p>
                             </div>
                           </div>
@@ -332,11 +334,11 @@ export function AdminFeedback() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="pending">{t("common.pending")}</SelectItem>
                                 <SelectItem value="in_progress">
-                                  In Progress
+                                  {t("common.inProgress")}
                                 </SelectItem>
-                                <SelectItem value="resolved">Resolved</SelectItem>
+                                <SelectItem value="resolved">{t("common.resolved")}</SelectItem>
                               </SelectContent>
                             </Select>
                             <button
@@ -346,7 +348,7 @@ export function AdminFeedback() {
                               className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-red-100 bg-white px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <Trash2 size={14} />
-                              Delete
+                              {t("common.delete")}
                             </button>
                           </div>
                         </div>
@@ -362,20 +364,20 @@ export function AdminFeedback() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50">
                 <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-                  Trainer Feedback
+                  {t("feedback.trainerFeedback")}
                 </h3>
               </div>
 
               <div className="p-5 space-y-3">
                 {trainerRatings.length === 0 ? (
                   <div className="text-sm text-gray-400 text-center py-8">
-                    No trainer ratings found.
+                    {t("feedback.noTrainerRatings")}
                   </div>
                 ) : (
                   trainerRatings.map((rating) => {
                     const stars = Number(rating.details?.rating || 0);
                     const trainerName =
-                      rating.details?.trainer_name || "Trainer not assigned";
+                      rating.details?.trainer_name || t("feedback.trainerNotAssigned");
                     const trainerEmail = rating.details?.trainer_email;
 
                     return (
@@ -394,7 +396,7 @@ export function AdminFeedback() {
                                 {rating.user_name}
                               </p>
                               <p className="text-xs text-gray-400">
-                                Rated {trainerName}
+                                {t("feedback.rated")} {trainerName}
                                 {trainerEmail ? ` (${trainerEmail})` : ""}
                               </p>
                             </div>
@@ -421,7 +423,7 @@ export function AdminFeedback() {
                               className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-red-100 bg-white px-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <Trash2 size={13} />
-                              Delete
+                              {t("common.delete")}
                             </button>
                           </div>
                         </div>
@@ -444,14 +446,14 @@ export function AdminFeedback() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50">
                 <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-                  Member Suggestions
+                  {t("feedback.memberSuggestions")}
                 </h3>
               </div>
 
               <div className="p-5 space-y-3">
                 {suggestions.length === 0 ? (
                   <div className="text-sm text-gray-400 text-center py-8">
-                    No suggestions found.
+                    {t("feedback.noSuggestions")}
                   </div>
                 ) : (
                   suggestions.map((item) => {
@@ -476,7 +478,7 @@ export function AdminFeedback() {
                                 {item.user_name}
                               </p>
                               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
-                                Suggestion
+                                {t("feedback.suggestion")}
                               </span>
                             </div>
                           </div>
@@ -515,12 +517,12 @@ export function AdminFeedback() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="pending">{t("common.pending")}</SelectItem>
                                 <SelectItem value="reviewed">
-                                  Under Review
+                                  {t("common.underReview")}
                                 </SelectItem>
                                 <SelectItem value="implemented">
-                                  Resolved
+                                  {t("common.resolved")}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
@@ -531,7 +533,7 @@ export function AdminFeedback() {
                               className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-red-100 bg-white px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <Trash2 size={14} />
-                              Delete
+                              {t("common.delete")}
                             </button>
                           </div>
                         </div>
@@ -556,10 +558,10 @@ export function AdminFeedback() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Delete feedback
+              {t("feedback.deleteTitle")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              This removes the selected feedback and its related details.
+              {t("feedback.deleteDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -579,7 +581,7 @@ export function AdminFeedback() {
               disabled={deleteFeedbackMutation.isPending}
               className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -592,7 +594,7 @@ export function AdminFeedback() {
               ) : (
                 <Trash2 size={16} />
               )}
-              Delete
+              {t("common.delete")}
             </button>
           </div>
         </DialogContent>

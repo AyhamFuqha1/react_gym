@@ -23,6 +23,7 @@ import { getRole } from "../../../services/auth";
 import type { CoachItem } from "../../../services/coaches";
 import { useCreateCoach } from "../../../hooks/coaches/mutations/useCreateCoach";
 import { useCoaches } from "../../../hooks/coaches/queries/useCoaches";
+import { useTranslation } from "../../../i18n";
 
 const emptyForm = {
   name: "",
@@ -55,9 +56,7 @@ function formatDate(value?: string | null) {
   });
 }
 
-function getErrorMessage(error: unknown) {
-  const fallback = "Failed to create coach";
-
+function getErrorMessage(error: unknown, fallback: string) {
   if (typeof error !== "object" || error === null) {
     return fallback;
   }
@@ -98,6 +97,7 @@ function sortCoaches(coaches: CoachItem[]) {
 }
 
 export function CoachesManagement() {
+  const { t } = useTranslation();
   const role = getRole();
   const canCreateCoach = role === "admin" || role === "manager";
 
@@ -122,12 +122,12 @@ export function CoachesManagement() {
     const email = formData.email.trim();
 
     if (!name || !email) {
-      setFormError("Name and email are required.");
+      setFormError(t("coaches.nameEmailRequired"));
       return;
     }
 
     if (!isValidEmail(email)) {
-      setFormError("Enter a valid email address.");
+      setFormError(t("coaches.validEmailRequired"));
       return;
     }
 
@@ -142,7 +142,7 @@ export function CoachesManagement() {
       setFormData(emptyForm);
       setOpenCreateDialog(false);
     } catch (err) {
-      setFormError(getErrorMessage(err));
+      setFormError(getErrorMessage(err, t("coaches.createFailed")));
     }
   }
 
@@ -156,17 +156,17 @@ export function CoachesManagement() {
   }
 
   const loadErrorMessage =
-    error instanceof Error ? error.message : "Unable to load coaches.";
+    error instanceof Error ? error.message : t("coaches.unableToLoad");
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Coaches Management
+            {t("coaches.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            View coaches and create new coach accounts
+            {t("coaches.subtitle")}
           </p>
         </div>
 
@@ -175,17 +175,17 @@ export function CoachesManagement() {
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] hover:shadow-lg hover:shadow-[#0D7D6D]/25 text-white rounded-xl border-0 h-11 px-5">
                 <Plus className="mr-2" size={18} />
-                Add Coach
+                {t("coaches.addCoach")}
               </Button>
             </DialogTrigger>
 
             <DialogContent className="max-w-md rounded-2xl border-gray-100">
               <DialogHeader>
                 <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-                  Add New Coach
+                  {t("coaches.addNewCoach")}
                 </DialogTitle>
                 <DialogDescription>
-                  Create a coach account using the protected registration API
+                  {t("coaches.createDescription")}
                 </DialogDescription>
               </DialogHeader>
 
@@ -197,9 +197,9 @@ export function CoachesManagement() {
                 ) : null}
 
                 <div className="space-y-1.5">
-                  <Label className="text-gray-600 text-sm">Full Name</Label>
+                  <Label className="text-gray-600 text-sm">{t("coaches.fullName")}</Label>
                   <Input
-                    placeholder="Coach Name"
+                    placeholder={t("coaches.coachNamePlaceholder")}
                     className="rounded-xl border-gray-200 bg-gray-50"
                     value={formData.name}
                     onChange={(e) =>
@@ -209,7 +209,7 @@ export function CoachesManagement() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-gray-600 text-sm">Email</Label>
+                  <Label className="text-gray-600 text-sm">{t("common.email")}</Label>
                   <Input
                     type="email"
                     placeholder="coach@example.com"
@@ -230,7 +230,9 @@ export function CoachesManagement() {
                   }
                   className="w-full bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md hover:shadow-[#0D7D6D]/20"
                 >
-                  {createCoachMutation.isPending ? "Creating..." : "Create Coach"}
+                  {createCoachMutation.isPending
+                    ? t("common.creating")
+                    : t("coaches.createCoach")}
                 </Button>
               </div>
             </DialogContent>
@@ -243,7 +245,7 @@ export function CoachesManagement() {
           <p className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-[#0D7D6D]">
             {coaches.length}
           </p>
-          <p className="text-gray-500 text-sm mt-1">Total Coaches</p>
+          <p className="text-gray-500 text-sm mt-1">{t("coaches.totalCoaches")}</p>
         </div>
 
         <div className="bg-emerald-50 rounded-2xl p-5 text-center">
@@ -254,7 +256,7 @@ export function CoachesManagement() {
               ).length
             }
           </p>
-          <p className="text-gray-500 text-sm mt-1">Active Coaches</p>
+          <p className="text-gray-500 text-sm mt-1">{t("coaches.activeCoaches")}</p>
         </div>
 
         <div className="bg-gray-100 rounded-2xl p-5 text-center">
@@ -265,7 +267,7 @@ export function CoachesManagement() {
               ).length
             }
           </p>
-          <p className="text-gray-500 text-sm mt-1">Inactive / Other</p>
+          <p className="text-gray-500 text-sm mt-1">{t("coaches.inactiveOther")}</p>
         </div>
       </div>
 
@@ -279,7 +281,7 @@ export function CoachesManagement() {
             className="rounded-xl border-red-200 text-red-600 hover:bg-red-100"
           >
             <RefreshCw size={14} className="mr-2" />
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       ) : null}
@@ -287,13 +289,13 @@ export function CoachesManagement() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
           <h3 className="font-['Plus_Jakarta_Sans',sans-serif] text-3xl font-700 text-gray-900">
-            All Coaches ({coaches.length})
+            {t("coaches.allCoaches")} ({coaches.length})
           </h3>
 
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Loader2 size={16} className="animate-spin" />
-              Loading...
+              {t("common.loading")}
             </div>
           ) : null}
         </div>
@@ -303,16 +305,16 @@ export function CoachesManagement() {
             <TableHeader>
               <TableRow className="bg-gray-50/60">
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Coach
+                  {t("coaches.coach")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Email
+                  {t("common.email")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Status
+                  {t("common.status")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Created
+                  {t("coaches.created")}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -323,7 +325,7 @@ export function CoachesManagement() {
                   <TableCell colSpan={4} className="text-center py-10">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <UserRound size={28} />
-                      <span>No coaches found</span>
+                      <span>{t("coaches.noCoaches")}</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -345,7 +347,7 @@ export function CoachesManagement() {
                           {coach.name}
                         </p>
                         <p className="text-gray-400 text-xs">
-                          Coach ID: {coach.id}
+                          {t("coaches.coachId")}: {coach.id}
                         </p>
                       </div>
                     </div>

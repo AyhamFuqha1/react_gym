@@ -40,10 +40,12 @@ import { useGeneralNutritionCategories } from "../../hooks/generalNutrition/quer
 import { useCreateGeneralNutrition } from "../../hooks/generalNutrition/mutations/useCreateGeneralNutrition";
 import { useUpdateGeneralNutrition } from "../../hooks/generalNutrition/mutations/useUpdateGeneralNutrition";
 import { useDeleteGeneralNutrition } from "../../hooks/generalNutrition/mutations/useDeleteGeneralNutrition";
+import { useTranslation } from "../../i18n";
 
 export function NutritionLibrary() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -110,7 +112,7 @@ export function NutritionLibrary() {
       !createForm.icon.trim() ||
       !createForm.description.trim()
     ) {
-      setSubmitError("All fields are required.");
+      setSubmitError(t("common.requiredFields"));
       return;
     }
 
@@ -142,7 +144,7 @@ export function NutritionLibrary() {
       !editForm.icon.trim() ||
       !editForm.description.trim()
     ) {
-      setSubmitError("All fields are required.");
+      setSubmitError(t("common.requiredFields"));
       return;
     }
 
@@ -191,10 +193,10 @@ export function NutritionLibrary() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900">
-            Nutrition Library
+            {t("nutritionLibrary.title")}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Manage food database organized by nutrition categories
+            {t("nutritionLibrary.subtitle")}
           </p>
         </div>
 
@@ -207,7 +209,7 @@ export function NutritionLibrary() {
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
         >
           <Plus className="mr-2" size={18} />
-          Create Category
+          {t("nutritionLibrary.addCategory")}
         </Button>
       </div>
 
@@ -215,7 +217,9 @@ export function NutritionLibrary() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-2">Total Foods</p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t("nutritionLibrary.totalFoods")}
+              </p>
               <p className="text-2xl font-bold text-gray-900">{totalFoods}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -227,7 +231,9 @@ export function NutritionLibrary() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-2">Categories</p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t("dashboard.nutritionCategories")}
+              </p>
               <p className="text-2xl font-bold text-gray-900">
                 {categories.length}
               </p>
@@ -242,10 +248,10 @@ export function NutritionLibrary() {
       <div>
         <div className="mb-4">
           <h2 className="text-xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
-            Food Categories
+            {t("dashboard.nutritionCategories")}
           </h2>
           <p className="text-gray-500 text-sm">
-            Select a category to view and manage foods
+            {t("nutritionLibrary.subtitle")}
           </p>
         </div>
 
@@ -259,7 +265,7 @@ export function NutritionLibrary() {
           </div>
         ) : categories.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm">
-            No nutrition categories found.
+            {t("nutritionLibrary.noCategories")}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -279,7 +285,7 @@ export function NutritionLibrary() {
                     className={`${category.bgSoft} ${category.borderColor} border px-3 py-1 rounded-full`}
                   >
                     <span className={`${category.textColor} text-sm font-semibold`}>
-                      {category.foodCount} foods
+                      {category.foodCount} {t("nutritionLibrary.foods")}
                     </span>
                   </div>
                 </div>
@@ -299,8 +305,8 @@ export function NutritionLibrary() {
                     }
                     className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900 rounded-xl h-11"
                   >
-                    View Foods
-                    <ChevronRight className="ml-2 w-4 h-4" />
+                    {t("nutritionLibrary.foods")}
+                    <ChevronRight className="ml-2 w-4 h-4 rtl-flip" />
                   </Button>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -310,7 +316,7 @@ export function NutritionLibrary() {
                       className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl"
                     >
                       <Pencil className="mr-2 h-4 w-4" />
-                      Update
+                      {t("common.update")}
                     </Button>
 
                     <Button
@@ -319,7 +325,7 @@ export function NutritionLibrary() {
                       className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
+                      {t("common.delete")}
                     </Button>
                   </div>
                 </div>
@@ -341,12 +347,14 @@ export function NutritionLibrary() {
       >
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Create Nutrition Category</DialogTitle>
+            <DialogTitle>{t("nutritionLibrary.addCategory")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="create-category-name">Category Name</Label>
+              <Label htmlFor="create-category-name">
+                {t("nutritionLibrary.categoryName")}
+              </Label>
               <Input
                 id="create-category-name"
                 value={createForm.category_name}
@@ -362,7 +370,7 @@ export function NutritionLibrary() {
             </div>
 
             <div>
-              <Label>Choose Icon</Label>
+              <Label>{t("nutritionLibrary.icon")}</Label>
               <Select
                 value={createForm.icon}
                 onValueChange={(value) =>
@@ -386,7 +394,9 @@ export function NutritionLibrary() {
             </div>
 
             <div>
-              <Label htmlFor="create-category-description">Description</Label>
+              <Label htmlFor="create-category-description">
+                {t("nutritionLibrary.description")}
+              </Label>
               <Textarea
                 id="create-category-description"
                 value={createForm.description}
@@ -413,7 +423,7 @@ export function NutritionLibrary() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
-              {isSubmitting ? "Creating..." : "Create Category"}
+              {isSubmitting ? t("members.creating") : t("nutritionLibrary.addCategory")}
             </Button>
           </div>
         </DialogContent>
@@ -431,12 +441,14 @@ export function NutritionLibrary() {
       >
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Update Nutrition Category</DialogTitle>
+            <DialogTitle>{t("common.update")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit-category-name">Category Name</Label>
+              <Label htmlFor="edit-category-name">
+                {t("nutritionLibrary.categoryName")}
+              </Label>
               <Input
                 id="edit-category-name"
                 value={editForm.category_name}
@@ -451,7 +463,7 @@ export function NutritionLibrary() {
             </div>
 
             <div>
-              <Label>Choose Icon</Label>
+              <Label>{t("nutritionLibrary.icon")}</Label>
               <Select
                 value={editForm.icon}
                 onValueChange={(value) =>
@@ -475,7 +487,9 @@ export function NutritionLibrary() {
             </div>
 
             <div>
-              <Label htmlFor="edit-category-description">Description</Label>
+              <Label htmlFor="edit-category-description">
+                {t("nutritionLibrary.description")}
+              </Label>
               <Textarea
                 id="edit-category-description"
                 value={editForm.description}
@@ -501,7 +515,7 @@ export function NutritionLibrary() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
-              {isSubmitting ? "Updating..." : "Update Category"}
+              {isSubmitting ? t("common.loading") : t("nutritionLibrary.updateCategory")}
             </Button>
           </div>
         </DialogContent>
@@ -519,12 +533,12 @@ export function NutritionLibrary() {
       >
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Delete Nutrition Category</DialogTitle>
+            <DialogTitle>{t("common.delete")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <p className="text-sm text-gray-500">
-              Are you sure you want to delete{" "}
+              {t("nutritionLibrary.deletePrompt")}{" "}
               <span className="font-semibold text-gray-900">
                 {selectedCategory?.category_name}
               </span>
@@ -553,7 +567,7 @@ export function NutritionLibrary() {
                 disabled={isSubmitting}
                 className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
               >
-                {isSubmitting ? "Deleting..." : "Delete"}
+                {isSubmitting ? t("common.deleting") : t("common.delete")}
               </Button>
             </div>
           </div>

@@ -42,11 +42,13 @@ import { useExerciseById } from "../../hooks/exercises/queries/useExerciseById";
 import { useCreateExercise } from "../../hooks/exercises/mutations/useCreateExercise";
 import { useUpdateExercise } from "../../hooks/exercises/mutations/useUpdateExercise";
 import { useDeleteExercise } from "../../hooks/exercises/mutations/useDeleteExercise";
+import { useTranslation } from "../../i18n";
 
 export function ExercisesPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -203,7 +205,11 @@ export function ExercisesPage() {
     updateMutation.isPending ||
     editExerciseQuery.isLoading;
 
-  const pageLoading = loading && (!data || !Array.isArray(data.exercises));
+  const pageLoading =
+    loading &&
+    !Array.isArray(
+      (data as { exercises?: unknown[] } | undefined)?.exercises
+    );
 
   const dialogOpen = isDialogOpen || editingExerciseId !== null;
 
@@ -239,16 +245,16 @@ export function ExercisesPage() {
               onClick={() => navigate(`${dashboardBase}/content`)}
               className="text-gray-500 hover:text-gray-900 hover:bg-gray-100 mb-2 -ml-3"
             >
-              <ArrowLeft className="mr-2 w-4 h-4" />
-              Back to Categories
+              <ArrowLeft className="mr-2 w-4 h-4 rtl-flip" />
+              {t("dashboard.exerciseCategories")}
             </Button>
 
             <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
-              {categoryName || "Exercises"}
+              {categoryName || t("exercises.title")}
             </h1>
             <p className="text-gray-500 text-sm">
               {pageLoading
-                ? "Loading exercises..."
+                ? t("common.loading")
                 : `${filteredExercises.length} exercises in this category`}
             </p>
             {categoryDescription ? (
@@ -262,7 +268,7 @@ export function ExercisesPage() {
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
         >
           <Plus className="mr-2" size={18} />
-          Add Exercise
+          {t("exercises.addExercise")}
         </Button>
       </div>
 
@@ -271,7 +277,7 @@ export function ExercisesPage() {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search exercises..."
+              placeholder={t("exercises.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
@@ -282,10 +288,10 @@ export function ExercisesPage() {
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10 pointer-events-none" />
             <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
               <SelectTrigger className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 rounded-xl">
-                <SelectValue placeholder="All Difficulties" />
+                <SelectValue placeholder={t("exercises.allDifficulties")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Difficulties</SelectItem>
+                <SelectItem value="all">{t("exercises.difficulty")}</SelectItem>
                 <SelectItem value="beginner">Beginner</SelectItem>
                 <SelectItem value="intermediate">Intermediate</SelectItem>
                 <SelectItem value="advanced">Advanced</SelectItem>
@@ -305,7 +311,7 @@ export function ExercisesPage() {
             <Search className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-2xl text-gray-900 font-semibold mb-2">
-            No exercises found
+            {t("exercises.noExercises")}
           </h3>
           <p className="text-gray-500 mb-6">
             {exercises.length === 0
@@ -318,7 +324,7 @@ export function ExercisesPage() {
               className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0"
             >
               <Plus className="mr-2" size={18} />
-              Add Exercise
+              {t("exercises.addExercise")}
             </Button>
           ) : null}
         </div>
@@ -372,27 +378,27 @@ export function ExercisesPage() {
                 <div className="space-y-3 mb-5">
                   <div>
                     <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                      Instructions
+                      {t("exercises.instructions")}
                     </p>
                     <p className="text-sm text-gray-600 line-clamp-3">
-                      {exercise.instructions || "No instructions provided."}
+                      {exercise.instructions || t("exercises.noInstructions")}
                     </p>
                   </div>
 
                   <div>
                     <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                      Common Mistakes
+                      {t("exercises.commonMistakes")}
                     </p>
                     <p className="text-sm text-gray-500 line-clamp-2">
                       {exercise.common_mistakes ||
-                        "No common mistakes provided."}
+                        t("exercises.noCommonMistakes")}
                     </p>
                   </div>
 
                   {exercise.video_url ? (
                     <div>
                       <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                        Video URL
+                        {t("exercises.videoUrl")}
                       </p>
                       <a
                         href={exercise.video_url}
@@ -412,7 +418,7 @@ export function ExercisesPage() {
                     className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-10"
                   >
                     <Pencil className="mr-2 w-4 h-4" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
 
                   <Button
@@ -445,12 +451,14 @@ export function ExercisesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl p-0">
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl text-gray-900">
-              {editingExerciseId !== null ? "Edit Exercise" : "Add New Exercise"}
+              {editingExerciseId !== null
+                ? t("common.edit")
+                : t("exercises.addExercise")}
             </DialogTitle>
             <DialogDescription className="text-gray-500">
               {editingExerciseId !== null
-                ? "Update exercise details"
-                : "Create a new exercise for this category"}
+                ? t("exercises.updateDescription")
+                : t("exercises.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -458,7 +466,7 @@ export function ExercisesPage() {
             <div className="space-y-5 mt-4">
               <div>
                 <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Exercise Name
+                  {t("exercises.exerciseName")}
                 </Label>
                 <Input
                   value={form.name}
@@ -474,7 +482,7 @@ export function ExercisesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                    Category
+                    {t("exercises.category")}
                   </Label>
                   <Input
                     value={categoryName}
@@ -485,7 +493,7 @@ export function ExercisesPage() {
 
                 <div>
                   <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                    Difficulty
+                    {t("exercises.difficulty")}
                   </Label>
                   <Select
                     value={form.difficulty_level}
@@ -508,7 +516,7 @@ export function ExercisesPage() {
 
               <div>
                 <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Video URL
+                  {t("exercises.videoUrl")}
                 </Label>
                 <Input
                   value={form.video_url}
@@ -523,7 +531,7 @@ export function ExercisesPage() {
 
               <div>
                 <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Instructions
+                  {t("exercises.instructions")}
                 </Label>
                 <Textarea
                   value={form.instructions}
@@ -542,7 +550,7 @@ export function ExercisesPage() {
 
               <div>
                 <Label className="text-gray-700 text-sm font-medium mb-2 block">
-                  Common Mistakes
+                  {t("exercises.commonMistakes")}
                 </Label>
                 <Textarea
                   value={form.common_mistakes}
@@ -576,7 +584,7 @@ export function ExercisesPage() {
                   variant="outline"
                   className="flex-1 h-11 rounded-xl"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
 
                 <Button
@@ -587,12 +595,12 @@ export function ExercisesPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                      Saving...
+                      {t("common.loading")}
                     </>
                   ) : editingExerciseId !== null ? (
-                    "Update Exercise"
+                    t("common.update")
                   ) : (
-                    "Create Exercise"
+                    t("exercises.addExercise")
                   )}
                 </Button>
               </div>
@@ -615,10 +623,10 @@ export function ExercisesPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Delete Exercise
+              {t("common.delete")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Are you sure you want to delete this exercise?
+              {t("exercises.deleteConfirm")}
             </DialogDescription>
           </DialogHeader>
 
@@ -640,7 +648,7 @@ export function ExercisesPage() {
               disabled={deleteMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -652,10 +660,10 @@ export function ExercisesPage() {
               {deleteMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Deleting...
+                  {t("common.loading")}
                 </>
               ) : (
-                "Delete"
+                t("common.delete")
               )}
             </Button>
           </div>

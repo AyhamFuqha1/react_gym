@@ -13,10 +13,13 @@ import {
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { useTranslation } from "../../i18n";
 import { login, saveAuth, type UserRole } from "../../services/auth";
 
 export function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +53,7 @@ export function Login() {
       goToRoleDashboard(data.role);
     } catch (error: any) {
       setError(
-        error?.response?.data?.message || "Login failed. Please try again."
+        error?.response?.data?.message || t("login.error")
       );
     } finally {
       setIsLoading(false);
@@ -58,14 +61,18 @@ export function Login() {
   };
 
   const features = [
-    { icon: Users, label: "Smart member management & performance tracking" },
-    { icon: Brain, label: "AI-powered health and coaching insights" },
-    { icon: Shield, label: "Secure role-based access for all staff" },
-    { icon: CheckCircle, label: "Personalized fitness system for every user" },
+    { icon: Users, label: t("login.feature.memberManagement") },
+    { icon: Brain, label: t("login.feature.aiInsights") },
+    { icon: Shield, label: t("login.feature.secureAccess") },
+    { icon: CheckCircle, label: t("login.feature.personalizedSystem") },
   ];
 
   return (
     <div className="min-h-screen flex">
+      <div className="fixed right-5 top-5 z-20">
+        <LanguageSwitcher />
+      </div>
+
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-[#0F2420] via-[#0D7D6D]/30 to-[#0F2420] relative flex-col items-center justify-center p-12 overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#0D7D6D]/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#14B8A6]/10 rounded-full blur-3xl" />
@@ -89,7 +96,7 @@ export function Login() {
           </h1>
 
           <p className="text-[#CFFAF3] text-lg mb-12 max-w-xs mx-auto leading-relaxed">
-            Smart fitness, nutrition, and gym management in one intelligent system
+            {t("login.valueProp")}
           </p>
 
           <div className="space-y-3 text-left">
@@ -108,7 +115,7 @@ export function Login() {
         </div>
 
         <p className="relative z-10 mt-12 text-white/25 text-xs">
-          &copy; 2026 FitMind. All rights reserved.
+          {t("login.copyright")}
         </p>
       </div>
 
@@ -126,17 +133,17 @@ export function Login() {
           <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-gray-100 p-8">
             <div className="mb-7">
               <h2 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
-                Welcome to FitMind
+                {t("login.title")}
               </h2>
               <p className="text-gray-500 text-sm">
-                Your smart fitness journey starts here
+                {t("login.subtitle")}
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-gray-600 text-sm">
-                  Email Address
+                  {t("login.emailLabel")}
                 </Label>
                 <div className="relative">
                   <Mail
@@ -146,7 +153,7 @@ export function Login() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder={t("login.emailPlaceholder")}
                     className="pl-10 rounded-xl h-12 border-gray-200 bg-gray-50 focus:border-[#0D7D6D]"
                     value={formData.email}
                     onChange={(e) =>
@@ -159,7 +166,7 @@ export function Login() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-gray-600 text-sm">
-                  Password
+                  {t("login.passwordLabel")}
                 </Label>
                 <div className="relative">
                   <Lock
@@ -198,7 +205,7 @@ export function Login() {
                   to="/forgot-password"
                   className="text-sm text-[#0D7D6D] hover:text-[#0a6259] font-medium transition-colors"
                 >
-                  Forgot password?
+                  {t("login.forgotPassword")}
                 </Link>
               </div>
 
@@ -210,19 +217,19 @@ export function Login() {
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    Signing in...
+                    {t("login.signingIn")}
                   </span>
                 ) : (
-                  "Sign In"
+                  t("login.signIn")
                 )}
               </button>
             </form>
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-6">
-            Need help?{" "}
+            {t("login.needHelp")}{" "}
             <span className="text-[#0D7D6D] cursor-pointer hover:text-[#0a6259] transition-colors">
-              Contact support
+              {t("login.contactSupport")}
             </span>
           </p>
         </div>

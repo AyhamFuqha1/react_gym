@@ -20,13 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
 import type { GeneralExerciseItem } from "../../services/generalExercises";
 import {
   categoryOptions,
@@ -34,7 +27,6 @@ import {
   FIXED_MUSCLE_GROUP,
   getCategoryIcon,
   getCategoryTypeFromName,
-  getDefaultDescription,
   getErrorMessage,
   initialForm,
   type FormState,
@@ -43,10 +35,12 @@ import { useGeneralExercises } from "../../hooks/generalExercises/queries/useGen
 import { useCreateGeneralExercise } from "../../hooks/generalExercises/mutations/useCreateGeneralExercise";
 import { useUpdateGeneralExercise } from "../../hooks/generalExercises/mutations/useUpdateGeneralExercise";
 import { useDeleteGeneralExercise } from "../../hooks/generalExercises/mutations/useDeleteGeneralExercise";
+import { useTranslation } from "../../i18n";
 
 export function ContentManagement() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -120,20 +114,9 @@ export function ContentManagement() {
     setIsDeleteDialogOpen(true);
   }
 
-  function handleCategoryTypeChange(value: string) {
-    const option = categoryOptions.find((item) => item.value === value);
-
-    setForm((prev) => ({
-      ...prev,
-      categoryType: value,
-      name: option?.label ?? prev.name,
-      description: getDefaultDescription(value),
-    }));
-  }
-
   async function handleSubmit() {
     if (!form.name.trim() || !form.description.trim()) {
-      setFormError("Name and description are required.");
+      setFormError(t("content.nameDescriptionRequired"));
       return;
     }
 
@@ -161,8 +144,8 @@ export function ContentManagement() {
         getErrorMessage(
           error,
           editingCategory
-            ? "Failed to update category."
-            : "Failed to create category."
+            ? t("content.updateCategoryFailed")
+            : t("content.createCategoryFailed")
         )
       );
     }
@@ -180,11 +163,6 @@ export function ContentManagement() {
     }
   }
 
-  const isSubmitting =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    deleteMutation.isPending;
-
   const errorMessage =
     error instanceof Error ? error.message : "Failed to load categories.";
 
@@ -193,10 +171,10 @@ export function ContentManagement() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-gray-900 mb-1">
-            Content Management
+            {t("content.title")}
           </h1>
           <p className="text-gray-500 text-sm">
-            Manage exercise categories and navigate to category exercises
+            {t("content.subtitle")}
           </p>
         </div>
 
@@ -205,18 +183,20 @@ export function ContentManagement() {
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
         >
           <Plus className="mr-2" size={18} />
-          Add Category
+          {t("content.addCategory")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Categories</p>
+          <p className="text-sm text-gray-500 mb-1">
+            {t("dashboard.exerciseCategories")}
+          </p>
           <p className="text-3xl font-bold text-gray-900">{categoriesCount}</p>
         </div>
 
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Exercises</p>
+          <p className="text-sm text-gray-500 mb-1">{t("content.exercises")}</p>
           <p className="text-3xl font-bold text-gray-900">{exercisesCount}</p>
         </div>
       </div>
@@ -225,7 +205,7 @@ export function ContentManagement() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
-            placeholder="Search categories..."
+            placeholder={t("content.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-12 h-11 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl"
@@ -247,11 +227,11 @@ export function ContentManagement() {
             <Search className="w-10 h-10 text-gray-400" />
           </div>
           <h3 className="text-2xl text-gray-900 font-semibold mb-2">
-            No categories found
+            {t("content.noCategories")}
           </h3>
           <p className="text-gray-500 mb-6">
             {categories.length === 0
-              ? "No exercise categories yet."
+              ? t("content.noExerciseCategories")
               : "Try adjusting your search."}
           </p>
           {categories.length === 0 ? (
@@ -260,7 +240,7 @@ export function ContentManagement() {
               className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0"
             >
               <Plus className="mr-2" size={18} />
-              Add Category
+              {t("content.addCategory")}
             </Button>
           ) : null}
         </div>
@@ -292,7 +272,7 @@ export function ContentManagement() {
                       className="h-10 rounded-xl"
                     >
                       <Eye className="mr-2 w-4 h-4" />
-                      View Exercises
+                      {t("content.exercises")}
                     </Button>
                   </div>
                 </div>
@@ -302,7 +282,7 @@ export function ContentManagement() {
                 </h3>
 
                 <p className="text-sm text-gray-500 mb-4 line-clamp-2">
-                  {category.description || "No description available."}
+                  {category.description || t("common.noDescription")}
                 </p>
 
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-600 mb-5">
@@ -316,7 +296,7 @@ export function ContentManagement() {
                     className="flex-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl h-10"
                   >
                     <Edit3 className="mr-2 w-4 h-4" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
 
                   <Button
@@ -344,18 +324,18 @@ export function ContentManagement() {
       <DialogContent className="sm:max-w-[560px] rounded-2xl">
         <DialogHeader>
           <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-            {editingCategory ? "Edit Category" : "Create Category"}
+            {editingCategory ? t("common.edit") : t("content.addCategory")}
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
             {editingCategory
-              ? "Update the category information below."
-              : "Create a new exercise category."}
+              ? t("content.updateCategoryDescription")
+              : t("content.createCategoryDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="categoryType">Category Type</Label>
+            <Label htmlFor="categoryType">{t("content.categoryType")}</Label>
             <select
               id="categoryType"
               value={form.categoryType}
@@ -376,7 +356,7 @@ export function ContentManagement() {
               }}
               className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
             >
-              <option value="">Select category type</option>
+              <option value="">{t("content.selectCategoryType")}</option>
               {categoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -386,7 +366,7 @@ export function ContentManagement() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Category Name</Label>
+            <Label htmlFor="name">{t("content.categoryName")}</Label>
             <Input
               id="name"
               value={form.name}
@@ -400,7 +380,7 @@ export function ContentManagement() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t("content.description")}</Label>
             <Textarea
               id="description"
               value={form.description}
@@ -430,7 +410,7 @@ export function ContentManagement() {
               }}
               className="flex-1 rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -445,9 +425,9 @@ export function ContentManagement() {
                   {editingCategory ? "Saving..." : "Creating..."}
                 </>
               ) : editingCategory ? (
-                "Save Changes"
+                t("common.save")
               ) : (
-                "Create Category"
+                t("content.addCategory")
               )}
             </Button>
           </div>
@@ -468,14 +448,14 @@ export function ContentManagement() {
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
           <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-            Delete Category
+            {t("common.delete")}
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
-            Are you sure you want to delete{" "}
+            {t("content.deletePrompt")}{" "}
             <span className="font-semibold text-gray-900">
               {deletingCategory?.name}
             </span>
-            ? This action cannot be undone.
+            ? {t("common.deleteWarning")}
           </DialogDescription>
         </DialogHeader>
 
@@ -496,7 +476,7 @@ export function ContentManagement() {
             }}
             className="flex-1 rounded-xl"
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
 
           <Button
@@ -508,10 +488,10 @@ export function ContentManagement() {
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 animate-spin" size={16} />
-                Deleting...
+                {t("common.loading")}
               </>
             ) : (
-              "Delete"
+              t("common.delete")
             )}
           </Button>
         </div>

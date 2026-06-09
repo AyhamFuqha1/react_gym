@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
+import { useTranslation } from "../../../i18n";
 import { useCoachDashboard } from "../../../hooks/coachDashboard/queries/useCoachDashboard";
 import { useCoachSmartSync } from "../../../hooks/coachDashboard/mutations/useCoachSmartSync";
 import type { SyncAllResponse } from "../../../services/aiSync";
@@ -36,6 +37,7 @@ function formatSyncTime(value?: string) {
 }
 
 export function CoachDashboard() {
+  const { t } = useTranslation();
   const [syncResult, setSyncResult] = useState<SyncAllResponse | null>(() => {
     try {
       const raw = localStorage.getItem(SYNC_RESULT_STORAGE_KEY);
@@ -77,35 +79,41 @@ export function CoachDashboard() {
   const statCards = useMemo(
     () => [
       {
-        label: "Members",
+        label: t("dashboard.members"),
         value: members.length,
         icon: Users,
         iconBg: "bg-blue-50",
         iconColor: "text-blue-600",
       },
       {
-        label: "News",
+        label: t("dashboard.news"),
         value: news.length,
         icon: Newspaper,
         iconBg: "bg-emerald-50",
         iconColor: "text-emerald-600",
       },
       {
-        label: "Nutrition Categories",
+        label: t("dashboard.nutritionCategories"),
         value: nutritionCategories.length,
         icon: Apple,
         iconBg: "bg-orange-50",
         iconColor: "text-orange-600",
       },
       {
-        label: "Exercise Categories",
+        label: t("dashboard.exerciseCategories"),
         value: exerciseCategories.length,
         icon: Dumbbell,
         iconBg: "bg-purple-50",
         iconColor: "text-purple-600",
       },
     ],
-    [members.length, news.length, nutritionCategories.length, exerciseCategories.length]
+    [
+      members.length,
+      news.length,
+      nutritionCategories.length,
+      exerciseCategories.length,
+      t,
+    ]
   );
 
   function saveSyncResultToStorage(result: SyncAllResponse) {
@@ -131,17 +139,17 @@ export function CoachDashboard() {
   }
 
   const errorMessage =
-    error instanceof Error ? error.message : "Failed to load coach dashboard.";
+    error instanceof Error ? error.message : t("dashboard.error");
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Coach Dashboard
+            {t("dashboard.coach.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Quick overview of members, content, and activity.
+            {t("dashboard.coach.subtitle")}
           </p>
         </div>
 
@@ -153,12 +161,12 @@ export function CoachDashboard() {
           {smartSyncMutation.isPending ? (
             <>
               <Loader2 className="mr-2 animate-spin" size={16} />
-              Syncing...
+              {t("dashboard.syncing")}
             </>
           ) : (
             <>
               <RefreshCw className="mr-2" size={16} />
-              Smart Sync
+              {t("dashboard.smartSync")}
             </>
           )}
         </Button>
@@ -167,7 +175,7 @@ export function CoachDashboard() {
       {loading ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex items-center justify-center gap-3 text-gray-500">
           <Loader2 className="animate-spin" size={20} />
-          <span>Loading dashboard...</span>
+          <span>{t("dashboard.loading")}</span>
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
@@ -185,7 +193,9 @@ export function CoachDashboard() {
         <div className="bg-[#E6F4F1] border border-[#0D7D6D]/15 rounded-2xl p-4 text-sm text-gray-700">
           <div className="flex items-center gap-2 mb-2">
             <Brain size={16} className="text-[#0D7D6D]" />
-            <span className="font-semibold text-[#0D7D6D]">Last Sync Result</span>
+            <span className="font-semibold text-[#0D7D6D]">
+              {t("dashboard.lastSyncResult")}
+            </span>
           </div>
 
           <p className="mb-1">
@@ -201,11 +211,11 @@ export function CoachDashboard() {
           </p>
 
           <p className="mb-1 text-xs text-gray-600">
-            Last Sync Time: {formatSyncTime(lastSyncedAt)}
+            {t("dashboard.lastSyncTime")}: {formatSyncTime(lastSyncedAt)}
           </p>
 
           <p className="text-xs text-gray-500">
-            Elapsed: {syncResult.stats.elapsed_seconds.toFixed(2)}s
+            {t("dashboard.elapsed")}: {syncResult.stats.elapsed_seconds.toFixed(2)}s
           </p>
         </div>
       ) : null}
@@ -238,17 +248,17 @@ export function CoachDashboard() {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-              Recent News
+              {t("dashboard.recentNews")}
             </h3>
             <span className="text-xs bg-blue-50 text-blue-600 border border-blue-100 font-semibold px-2.5 py-1 rounded-full">
-              {news.length} Items
+              {news.length} {t("dashboard.items")}
             </span>
           </div>
 
           <div className="space-y-3">
             {news.length === 0 ? (
               <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-500">
-                No news found.
+                {t("dashboard.noNews")}
               </div>
             ) : (
               news.map((item) => (
@@ -258,7 +268,7 @@ export function CoachDashboard() {
                 >
                   <p className="font-semibold text-gray-900 text-sm">{item.title}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {item.author_name ?? "Unknown author"}
+                    {item.author_name ?? t("dashboard.unknownAuthor")}
                   </p>
                 </div>
               ))
@@ -269,35 +279,35 @@ export function CoachDashboard() {
         <div className="space-y-4">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h4 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 mb-4 text-sm">
-              Coach Subscriptions
+              {t("dashboard.coachSubscriptions")}
             </h4>
             <p className="text-3xl font-bold text-gray-900 mb-1">
               {coachSubscriptions.length}
             </p>
             <p className="text-xs text-gray-500">
-              Subscriptions created by this coach
+              {t("dashboard.subscriptionsCreatedByCoach")}
             </p>
           </div>
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h4 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 mb-4 text-sm">
-              Content Summary
+              {t("dashboard.contentSummary")}
             </h4>
             <div className="space-y-3 text-sm text-gray-600">
               <div className="flex items-center justify-between">
-                <span>Exercise Categories</span>
+                <span>{t("dashboard.exerciseCategories")}</span>
                 <span className="font-semibold text-gray-900">
                   {exerciseCategories.length}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Nutrition Categories</span>
+                <span>{t("dashboard.nutritionCategories")}</span>
                 <span className="font-semibold text-gray-900">
                   {nutritionCategories.length}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Members</span>
+                <span>{t("dashboard.members")}</span>
                 <span className="font-semibold text-gray-900">{members.length}</span>
               </div>
             </div>
@@ -306,7 +316,7 @@ export function CoachDashboard() {
           <div className="bg-gradient-to-br from-[#0D7D6D] to-[#085249] rounded-2xl p-5 text-white">
             <div className="flex items-center gap-2 mb-3">
               <Brain size={16} className="text-[#7FD4C9]" />
-              <p className="font-semibold text-sm">Coach Summary</p>
+              <p className="font-semibold text-sm">{t("dashboard.coachSummary")}</p>
             </div>
             <p className="text-white/70 text-xs leading-relaxed">
               {members.length} members, {coachSubscriptions.length} coach-created

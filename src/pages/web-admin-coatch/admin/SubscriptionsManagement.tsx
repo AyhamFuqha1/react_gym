@@ -21,6 +21,7 @@ import {
 } from "../../../components/ui/select";
 import { mapSubscriptionToRow, type SubscriptionRow } from "../../../utils/subscriptions";
 import { useSubscriptionsForAdmin } from "../../../hooks/subscriptions/queries/useSubscriptionsForAdmin";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 const statusConfig: Record<
   string,
@@ -63,7 +64,21 @@ function getCreatorRoleLabel(item: SubscriptionRow): string | null {
   return null;
 }
 
+function getSubscriptionStatusLabel(
+  value: string,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<string, TranslationKey> = {
+    active: "common.active",
+    expired: "common.expired",
+    frozen: "common.frozen",
+  };
+
+  return t(labels[value] ?? "common.active");
+}
+
 export function SubscriptionsManagement() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [creatorRoleFilter, setCreatorRoleFilter] = useState("all");
@@ -135,7 +150,7 @@ export function SubscriptionsManagement() {
   };
 
   const errorMessage =
-    error instanceof Error ? error.message : "Failed to load subscriptions";
+    error instanceof Error ? error.message : t("subscriptions.loadFailed");
 
   if (loading) {
     return (
@@ -143,7 +158,7 @@ export function SubscriptionsManagement() {
         <div className="max-w-[1400px] mx-auto">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-2 text-gray-600">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Loading subscriptions...
+            {t("subscriptions.loading")}
           </div>
         </div>
       </div>
@@ -169,10 +184,10 @@ export function SubscriptionsManagement() {
           <div className="mb-2">
             <div>
               <h1 className="text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-2">
-                Subscriptions
+                {t("subscriptions.title")}
               </h1>
               <p className="text-gray-500 text-lg">
-                Review subscription records, assigned plans, and subscription status for members.
+                {t("subscriptions.subtitle")}
               </p>
             </div>
           </div>
@@ -185,7 +200,7 @@ export function SubscriptionsManagement() {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
             </div>
-            <p className="text-gray-500 text-sm mb-1">Total Subscriptions</p>
+            <p className="text-gray-500 text-sm mb-1">{t("subscriptions.total")}</p>
             <p className="text-3xl font-bold text-gray-900">
               {totalSubscriptions}
             </p>
@@ -197,7 +212,7 @@ export function SubscriptionsManagement() {
                 <CheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
-            <p className="text-gray-500 text-sm mb-1">Active Subscriptions</p>
+            <p className="text-gray-500 text-sm mb-1">{t("subscriptions.active")}</p>
             <p className="text-3xl font-bold text-gray-900">
               {activeSubscriptions}
             </p>
@@ -209,7 +224,7 @@ export function SubscriptionsManagement() {
                 <XCircle className="w-6 h-6 text-rose-600" />
               </div>
             </div>
-            <p className="text-gray-500 text-sm mb-1">Expired Subscriptions</p>
+            <p className="text-gray-500 text-sm mb-1">{t("subscriptions.expired")}</p>
             <p className="text-3xl font-bold text-gray-900">
               {expiredSubscriptions}
             </p>
@@ -221,7 +236,7 @@ export function SubscriptionsManagement() {
             <div className="col-span-2 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
-                placeholder="Search by member, plan, creator, or subscription ID..."
+                placeholder={t("subscriptions.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-12 bg-gray-50 border-gray-200 rounded-xl"
@@ -230,24 +245,24 @@ export function SubscriptionsManagement() {
 
             <Select value={creatorRoleFilter} onValueChange={setCreatorRoleFilter}>
               <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
-                <SelectValue placeholder="Filter by creator role" />
+                <SelectValue placeholder={t("subscriptions.filterCreatorRole")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Creators</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="coach">Coach</SelectItem>
+                <SelectItem value="all">{t("subscriptions.allCreators")}</SelectItem>
+                <SelectItem value="admin">{t("role.admin")}</SelectItem>
+                <SelectItem value="coach">{t("role.coach")}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-12 bg-gray-50 border-gray-200 rounded-xl">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t("subscriptions.filterStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-                <SelectItem value="frozen">Frozen</SelectItem>
+                <SelectItem value="all">{t("common.allStatus")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
+                <SelectItem value="expired">{t("common.expired")}</SelectItem>
+                <SelectItem value="frozen">{t("common.frozen")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -259,34 +274,34 @@ export function SubscriptionsManagement() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    User
+                    {t("aiRequests.user")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Created By
+                    {t("subscriptions.createdBy")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Creator Role
+                    {t("subscriptions.creatorRole")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Plan
+                    {t("subscriptions.plan")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Duration
+                    {t("subscriptions.duration")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Discount
+                    {t("subscriptions.discount")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Start Date
+                    {t("subscriptions.startDate")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    End Date
+                    {t("subscriptions.endDate")}
                   </th>
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
+                    {t("common.status")}
                   </th>
                   <th className="text-center py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
+                    {t("common.actions")}
                   </th>
                 </tr>
               </thead>
@@ -333,7 +348,7 @@ export function SubscriptionsManagement() {
                       </td>
 
                       <td className="py-4 px-6 text-sm text-gray-700">
-                        {subscription.durationDays} days
+                        {subscription.durationDays} {t("common.days")}
                       </td>
 
                       <td className="py-4 px-6 text-sm text-gray-700">
@@ -353,7 +368,7 @@ export function SubscriptionsManagement() {
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${status.bg} ${status.text} ${status.border}`}
                         >
                           <StatusIcon className="w-3.5 h-3.5" />
-                          {status.label}
+                          {getSubscriptionStatusLabel(subscription.status, t)}
                         </span>
                       </td>
 
@@ -362,7 +377,7 @@ export function SubscriptionsManagement() {
                           <button
                             onClick={() => handleViewDetails(subscription)}
                             className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
-                            title="View Details"
+                            title={t("aiRequests.viewDetails")}
                           >
                             <Eye className="w-4 h-4 text-blue-600" />
                           </button>
@@ -378,7 +393,7 @@ export function SubscriptionsManagement() {
                       colSpan={10}
                       className="py-10 px-6 text-center text-gray-500"
                     >
-                      No subscriptions found.
+                      {t("subscriptions.noFound")}
                     </td>
                   </tr>
                 )}
@@ -389,12 +404,14 @@ export function SubscriptionsManagement() {
           <div className="border-t border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Showing <strong>{filteredSubscriptions.length ? startIndex + 1 : 0}</strong>{" "}
-                to{" "}
+                {t("common.showing")}{" "}
+                <strong>{filteredSubscriptions.length ? startIndex + 1 : 0}</strong>{" "}
+                {t("common.to")}{" "}
                 <strong>
                   {Math.min(startIndex + itemsPerPage, filteredSubscriptions.length)}
                 </strong>{" "}
-                of <strong>{filteredSubscriptions.length}</strong> subscriptions
+                {t("common.of")} <strong>{filteredSubscriptions.length}</strong>{" "}
+                {t("subscriptions.subscriptions")}
               </p>
 
               <div className="flex items-center gap-2">
@@ -403,7 +420,7 @@ export function SubscriptionsManagement() {
                   disabled={currentPage === 1}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4 rtl-flip" />
                 </button>
 
                 <div className="flex gap-1">
@@ -431,7 +448,7 @@ export function SubscriptionsManagement() {
                   disabled={currentPage === totalPages}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 rtl-flip" />
                 </button>
               </div>
             </div>
@@ -458,7 +475,7 @@ export function SubscriptionsManagement() {
                       {selectedSubscription.userName}
                     </h2>
                     <p className="text-gray-500">
-                      Subscription #{selectedSubscription.id}
+                      {t("subscriptions.idLabel")} #{selectedSubscription.id}
                     </p>
                   </div>
                 </div>
@@ -482,7 +499,7 @@ export function SubscriptionsManagement() {
                     className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border ${status.bg} ${status.text} ${status.border}`}
                   >
                     <StatusIcon className="w-4 h-4" />
-                    {status.label}
+                    {getSubscriptionStatusLabel(selectedSubscription.status, t)}
                   </span>
                 );
               })()}
@@ -490,52 +507,52 @@ export function SubscriptionsManagement() {
 
             <div className="px-8 py-6 space-y-3">
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">User</span>
+                <span className="text-gray-600">{t("aiRequests.user")}</span>
                 <span className="font-semibold text-gray-900">
                   {selectedSubscription.userName}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Created By</span>
+                <span className="text-gray-600">{t("subscriptions.createdBy")}</span>
                 <span className="text-gray-900">
                   {selectedSubscription.createdBy ?? "—"}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Creator Role</span>
+                <span className="text-gray-600">{t("subscriptions.creatorRole")}</span>
                 <span className="text-gray-900">
                   {getCreatorRoleLabel(selectedSubscription) ?? "—"}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Plan</span>
+                <span className="text-gray-600">{t("subscriptions.plan")}</span>
                 <span className="font-semibold text-gray-900">
                   {selectedSubscription.planName}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Duration</span>
+                <span className="text-gray-600">{t("subscriptions.duration")}</span>
                 <span className="text-gray-900">
-                  {selectedSubscription.durationDays} days
+                  {selectedSubscription.durationDays} {t("common.days")}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Discount</span>
+                <span className="text-gray-600">{t("subscriptions.discount")}</span>
                 <span className="text-gray-900">{selectedSubscription.discount}</span>
               </div>
 
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                <span className="text-gray-600">Start Date</span>
+                <span className="text-gray-600">{t("subscriptions.startDate")}</span>
                 <span className="text-gray-900">{selectedSubscription.startDate}</span>
               </div>
 
               <div className="flex items-center justify-between py-3">
-                <span className="text-gray-600">End Date</span>
+                <span className="text-gray-600">{t("subscriptions.endDate")}</span>
                 <span className="text-gray-900">{selectedSubscription.endDate}</span>
               </div>
             </div>

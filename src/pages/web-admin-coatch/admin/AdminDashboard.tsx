@@ -34,6 +34,7 @@ import { useAdminDashboard } from "../../../hooks/dashboard/queries/useAdminDash
 import { useSmartSync } from "../../../hooks/dashboard/mutations/useSmartSync";
 import { useFullSync } from "../../../hooks/dashboard/mutations/useFullSync";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../components/ui/dialog";
+import { useTranslation } from "../../../i18n";
 
 type PersistedSyncResult = {
   result: SyncAllResponse;
@@ -58,6 +59,7 @@ function formatSyncTime(value?: string) {
 }
 
 export function AdminDashboard() {
+  const { t } = useTranslation();
   const [role, setRole] = useState("");
   const [syncResult, setSyncResult] = useState<SyncAllResponse | null>(null);
   const [syncError, setSyncError] = useState("");
@@ -110,7 +112,7 @@ export function AdminDashboard() {
       saveSyncResultToStorage(result);
     } catch (err) {
       console.error("Smart sync failed:", err);
-      setSyncError("Smart sync failed.");
+      setSyncError(t("dashboard.smartSyncFailed"));
     }
   }
 
@@ -126,7 +128,7 @@ export function AdminDashboard() {
       setConfirmFullSyncOpen(false);
     } catch (err) {
       console.error("Full sync failed:", err);
-      setSyncError("Full sync failed.");
+      setSyncError(t("dashboard.fullSyncFailed"));
     }
   }
 
@@ -154,18 +156,80 @@ export function AdminDashboard() {
   }, [dashboardStats]);
 
   const errorMessage =
-    error instanceof Error ? error.message : "Failed to load dashboard data.";
+    error instanceof Error ? error.message : t("dashboard.failedToLoadData");
+
+  function localizeDashboardLabel(label: string) {
+    if (label === "Total Members") return t("dashboard.totalMembers");
+    if (label === "Equipment Issues") return t("dashboard.equipmentIssues");
+    if (label === "Active Subscriptions") return t("dashboard.activeSubscriptions");
+    if (label === "Monthly Revenue") return t("dashboard.monthlyRevenue");
+    return label;
+  }
+
+  function localizeDashboardBadge(label: string, badge: string) {
+    const totalMembers = dashboardStats?.totalMembers ?? 0;
+    const equipmentIssues = dashboardStats?.equipmentIssues ?? 0;
+    const activeSubscriptions = dashboardStats?.activeSubscriptions ?? 0;
+
+    if (label === "Total Members") {
+      return `${activeSubscriptions} ${t("common.active")}`;
+    }
+
+    if (label === "Equipment Issues") {
+      return equipmentIssues > 0
+        ? `${equipmentIssues} ${t("common.pending")}`
+        : t("dashboard.allClear");
+    }
+
+    if (label === "Monthly Revenue") return t("dashboard.thisMonth");
+    if (label === "Active Subscriptions" && totalMembers <= 0) return badge;
+
+    return badge;
+  }
+
+  function localizeDashboardTrend(label: string, trend: string) {
+    const totalMembers = dashboardStats?.totalMembers ?? 0;
+    const equipmentIssues = dashboardStats?.equipmentIssues ?? 0;
+    const activeSubscriptions = dashboardStats?.activeSubscriptions ?? 0;
+    const monthlyRevenue = dashboardStats?.monthlyRevenue ?? 0;
+
+    if (label === "Total Members") {
+      return totalMembers > 0
+        ? `${activeSubscriptions} ${t("dashboard.activeSubscriptionsRightNow")}`
+        : t("dashboard.noMembersAvailableYet");
+    }
+
+    if (label === "Equipment Issues") {
+      return equipmentIssues > 0
+        ? t("dashboard.recentIssuesNeedReview")
+        : t("dashboard.noOpenEquipmentIssues");
+    }
+
+    if (label === "Active Subscriptions") {
+      return totalMembers > 0
+        ? `${activeSubscriptions} ${t("common.of")} ${totalMembers} ${t("dashboard.membersAreActive")}`
+        : t("dashboard.noActiveSubscriptionsYet");
+    }
+
+    if (label === "Monthly Revenue") {
+      return monthlyRevenue > 0
+        ? t("dashboard.revenueCollectedThisMonth")
+        : t("dashboard.noRevenueRecordedThisMonth");
+    }
+
+    return trend;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Dashboard
+            {t("dashboard.admin.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            {formatLastUpdated(dashboardStats?.lastUpdated)} — Here&apos;s what&apos;s
-            happening today.
+            {formatLastUpdated(dashboardStats?.lastUpdated)} -{" "}
+            {t("dashboard.whatsHappeningToday")}
           </p>
         </div>
 
@@ -179,17 +243,16 @@ export function AdminDashboard() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Confirm Full Sync
+              {t("dashboard.confirmFullSync")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              This will run a full sync for all exercises and nutrition data and may
-              consume higher API usage.
+              {t("dashboard.fullSyncDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-2 rounded-2xl border border-red-100 bg-red-50 p-4">
             <p className="text-sm text-red-600">
-              Use this only when you need a complete refresh of all AI sync data.
+              {t("dashboard.fullSyncWarning")}
             </p>
           </div>
 
@@ -201,7 +264,7 @@ export function AdminDashboard() {
               disabled={fullSyncMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -213,10 +276,10 @@ export function AdminDashboard() {
               {fullSyncMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 animate-spin" size={14} />
-                  Full Sync...
+                  {t("common.loading")}
                 </>
               ) : (
-                "Run Full Sync"
+                t("dashboard.fullSync")
               )}
             </Button>
           </div>
@@ -232,10 +295,10 @@ export function AdminDashboard() {
             {smartSyncMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 animate-spin" size={16} />
-                Syncing...
+                {t("dashboard.syncing")}
               </>
             ) : (
-              "Smart Sync"
+              t("dashboard.smartSync")
             )}
           </Button>
 
@@ -249,10 +312,10 @@ export function AdminDashboard() {
               {fullSyncMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 animate-spin" size={16} />
-                  Full Sync...
+                  {t("dashboard.fullSyncing")}
                 </>
               ) : (
-                "Full Sync"
+                t("dashboard.fullSync")
               )}
             </Button>
           )}
@@ -262,7 +325,7 @@ export function AdminDashboard() {
       {loading ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex items-center justify-center gap-3 text-gray-500">
           <Loader2 className="animate-spin" size={20} />
-          <span>Loading dashboard...</span>
+          <span>{t("dashboard.loading")}</span>
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-red-600 text-sm">
@@ -280,27 +343,31 @@ export function AdminDashboard() {
         <div className="bg-[#E6F4F1] border border-[#0D7D6D]/15 rounded-2xl p-4 text-sm text-gray-700">
           <div className="flex items-center gap-2 mb-2">
             <Brain size={16} className="text-[#0D7D6D]" />
-            <span className="font-semibold text-[#0D7D6D]">Last Sync Result</span>
+            <span className="font-semibold text-[#0D7D6D]">
+              {t("dashboard.lastSyncResult")}
+            </span>
           </div>
 
           <p className="mb-1">
-            Exercises — Added: {syncResult.stats.exercises.added}, Updated:{" "}
-            {syncResult.stats.exercises.updated}, Deleted:{" "}
+            {t("dashboard.exercises")} - {t("dashboard.added")}:{" "}
+            {syncResult.stats.exercises.added}, {t("dashboard.updated")}:{" "}
+            {syncResult.stats.exercises.updated}, {t("dashboard.deleted")}:{" "}
             {syncResult.stats.exercises.deleted}
           </p>
 
           <p className="mb-1">
-            Nutrition — Added: {syncResult.stats.nutrition.added}, Updated:{" "}
-            {syncResult.stats.nutrition.updated}, Deleted:{" "}
+            {t("dashboard.nutrition")} - {t("dashboard.added")}:{" "}
+            {syncResult.stats.nutrition.added}, {t("dashboard.updated")}:{" "}
+            {syncResult.stats.nutrition.updated}, {t("dashboard.deleted")}:{" "}
             {syncResult.stats.nutrition.deleted}
           </p>
 
           <p className="mb-1 text-xs text-gray-600">
-            Last Sync Time: {formatSyncTime(lastSyncedAt)}
+            {t("dashboard.lastSyncTime")}: {formatSyncTime(lastSyncedAt)}
           </p>
 
           <p className="text-xs text-gray-500">
-            Elapsed: {syncResult.stats.elapsed_seconds.toFixed(2)}s
+            {t("dashboard.elapsed")}: {syncResult.stats.elapsed_seconds.toFixed(2)}s
           </p>
         </div>
       ) : null}
@@ -321,17 +388,19 @@ export function AdminDashboard() {
                 <span
                   className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${card.badgeColor}`}
                 >
-                  {card.badge}
+                  {localizeDashboardBadge(card.label, card.badge)}
                 </span>
               </div>
 
-              <p className="text-sm text-gray-400 mb-1">{card.label}</p>
+              <p className="text-sm text-gray-400 mb-1">
+                {localizeDashboardLabel(card.label)}
+              </p>
               <p className="text-3xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-2">
                 {card.value}
               </p>
               <p className="text-xs text-gray-400 flex items-center gap-1">
                 <ArrowUpRight size={12} className="text-emerald-500" />
-                {card.trend}
+                {localizeDashboardTrend(card.label, card.trend)}
               </p>
             </div>
           );
@@ -343,15 +412,15 @@ export function AdminDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-                Membership Growth
+                {t("dashboard.membershipGrowth")}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Recent subscription activity
+                {t("dashboard.recentSubscriptionActivity")}
               </p>
             </div>
 
             <span className="text-xs bg-emerald-50 text-emerald-600 border border-emerald-100 font-semibold px-2.5 py-1 rounded-full">
-              Live
+              {t("dashboard.live")}
             </span>
           </div>
 
@@ -388,7 +457,7 @@ export function AdminDashboard() {
                 formatter={(value: string | number) => {
                   const numericValue =
                     typeof value === "number" ? value : Number(value ?? 0);
-                  return [numericValue, "Subscriptions"];
+                  return [numericValue, t("dashboard.subscriptions")];
                 }}
                 labelFormatter={(_, payload) => {
                   const item = payload?.[0]?.payload;
@@ -412,15 +481,15 @@ export function AdminDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-                Weekly Subscriptions
+                {t("dashboard.weeklySubscriptions")}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Latest subscription totals by week
+                {t("dashboard.latestSubscriptionTotals")}
               </p>
             </div>
 
             <span className="text-xs bg-emerald-50 text-emerald-600 border border-emerald-100 font-semibold px-2.5 py-1 rounded-full">
-              Live
+              {t("dashboard.live")}
             </span>
           </div>
 
@@ -461,11 +530,11 @@ export function AdminDashboard() {
                 formatter={(value: string | number) => {
                   const numericValue =
                     typeof value === "number" ? value : Number(value ?? 0);
-                  return [numericValue, "Subscriptions"];
+                  return [numericValue, t("dashboard.subscriptions")];
                 }}
                 labelFormatter={(_, payload) => {
                   const item = payload?.[0]?.payload;
-                  return item?.week ? `Week ${item.week}` : "";
+                  return item?.week ? `${t("dashboard.week")} ${item.week}` : "";
                 }}
               />
               <Bar
@@ -482,17 +551,17 @@ export function AdminDashboard() {
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-              Recent Issues
+              {t("dashboard.recentIssues")}
             </h3>
             <span className="text-xs bg-red-50 text-red-500 border border-red-100 font-semibold px-2.5 py-1 rounded-full">
-              {recentIssuesData.length} Pending
+              {recentIssuesData.length} {t("common.pending")}
             </span>
           </div>
 
           <div className="space-y-3">
             {recentIssuesData.length === 0 ? (
               <div className="p-4 bg-gray-50 rounded-xl text-sm text-gray-500">
-                No recent issues found.
+                {t("dashboard.noRecentIssues")}
               </div>
             ) : (
               recentIssuesData.map((issue) => (
@@ -526,7 +595,7 @@ export function AdminDashboard() {
                       <p className="font-semibold text-gray-800 text-sm">
                         {issue.equipment_name}
                       </p>
-                      <p className="text-xs text-gray-400">Equipment</p>
+                      <p className="text-xs text-gray-400">{t("dashboard.equipment")}</p>
                     </div>
                   </div>
 
@@ -569,12 +638,14 @@ export function AdminDashboard() {
               </div>
               <div>
                 <p className="font-semibold text-gray-800 text-sm mb-1">
-                  System Alert
+                  {t("dashboard.systemAlert")}
                 </p>
                 <p className="text-xs text-gray-500 leading-relaxed">
                   {recentIssuesData.length > 0
-                    ? `${recentIssuesData.length} recent equipment issues need attention.`
-                    : "No recent system alerts right now."}
+                    ? `${recentIssuesData.length} ${t(
+                        "dashboard.recentEquipmentIssuesNeedAttention"
+                      )}`
+                    : t("dashboard.noRecentSystemAlerts")}
                 </p>
               </div>
             </div>
@@ -582,13 +653,15 @@ export function AdminDashboard() {
 
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <h4 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 mb-4 text-sm">
-              Member Activity
+              {t("dashboard.memberActivity")}
             </h4>
             <div className="space-y-3">
               {memberActivityItems.map((item, i) => (
                 <div key={i}>
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-gray-500">{item.label}</span>
+                    <span className="text-gray-500">
+                      {localizeDashboardLabel(item.label)}
+                    </span>
                     <span className="font-semibold text-gray-700">
                       {item.value}
                     </span>
@@ -612,14 +685,20 @@ export function AdminDashboard() {
           <div className="bg-gradient-to-br from-[#0D7D6D] to-[#085249] rounded-2xl p-5 text-white">
             <div className="flex items-center gap-2 mb-3">
               <Activity size={16} className="text-[#7FD4C9]" />
-              <p className="font-semibold text-sm">AI Daily Summary</p>
+              <p className="font-semibold text-sm">{t("dashboard.aiDailySummary")}</p>
             </div>
             <p className="text-white/70 text-xs leading-relaxed">
               {dashboardStats
-                ? `${dashboardStats.totalMembers} members, ${dashboardStats.activeSubscriptions} active subscriptions, ${dashboardStats.equipmentIssues} equipment issues, and ${formatCurrency(
+                ? `${dashboardStats.totalMembers} ${t(
+                    "dashboard.members"
+                  )}, ${dashboardStats.activeSubscriptions} ${t(
+                    "dashboard.activeSubscriptions"
+                  )}, ${dashboardStats.equipmentIssues} ${t(
+                    "dashboard.equipmentIssues"
+                  )}, ${t("common.and")} ${formatCurrency(
                     dashboardStats.monthlyRevenue
-                  )} collected this month.`
-                : "Dashboard summary unavailable."}
+                  )} ${t("dashboard.collectedThisMonth")}`
+                : t("dashboard.summaryUnavailable")}
             </p>
           </div>
         </div>

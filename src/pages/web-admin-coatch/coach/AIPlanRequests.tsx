@@ -50,6 +50,7 @@ import { useApproveTrainingModification } from "../../../hooks/aiPlanRequests/mu
 import { useUpdateModificationRequest } from "../../../hooks/aiPlanRequests/mutations/useUpdateModificationRequest";
 import { useDeleteModificationRequest } from "../../../hooks/aiPlanRequests/mutations/useDeleteModificationRequest";
 import { useUserGoals } from "../../../hooks/aiPlanRequests/queries/useUserGoals";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 const statusConfig = {
   pending: {
@@ -211,6 +212,33 @@ function formatRequestDate(value?: string | null) {
     month: "short",
     year: "numeric",
   });
+}
+
+function getRequestStatusLabel(
+  value: string,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<string, TranslationKey> = {
+    pending: "aiRequests.pendingReview",
+    done: "common.completed",
+    approved: "common.approved",
+    edited: "aiRequests.edited",
+  };
+
+  return t(labels[value] ?? "aiRequests.pendingReview");
+}
+
+function getRequestSourceLabel(
+  value: string,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<string, TranslationKey> = {
+    generated: "aiRequests.generated",
+    modification: "aiRequests.modification",
+    injury: "aiRequests.injury",
+  };
+
+  return t(labels[value] ?? "aiRequests.modification");
 }
 
 function emptySafetyContext(): RequestSafetyContext {
@@ -533,6 +561,7 @@ function buildSafetyContextGroups(
 }
 
 export function AIPlanRequests() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRequest, setExpandedRequest] = useState<number | null>(null);
   const [modificationRequests, setModificationRequests] = useState<
@@ -560,6 +589,16 @@ export function AIPlanRequests() {
   const [modExerciseSearchLoadingKey, setModExerciseSearchLoadingKey] = useState<
     string | null
   >(null);
+
+  function getSafetyGroupTitle(title: string) {
+    if (title === "Warnings") return t("aiRequests.safetyWarnings");
+    if (title === "Restrictions") return t("aiRequests.safetyRestrictions");
+    if (title === "Alternatives") return t("aiRequests.safetyAlternatives");
+    if (title === "Safety Changes") return t("aiRequests.safetyChanges");
+    if (title === "Changed Exercises") return t("aiRequests.changedExercises");
+    if (title === "RAG / Sources") return t("aiRequests.ragSources");
+    return title;
+  }
 
   const {
     data: serverRequests = [],
@@ -646,14 +685,14 @@ export function AIPlanRequests() {
 
       return {
         ...request,
-        displayGoal: goalInfo?.goal ?? "No goal",
+        displayGoal: goalInfo?.goal ?? t("aiRequests.goal"),
         displayTargetWeight: goalInfo?.targetWeight ?? "",
-        displayLevel: profileLevel || "N/A",
+        displayLevel: profileLevel || t("common.notAvailable"),
         activeInjuries: activeInjuriesByUserId.get(userId) ?? [],
         profile,
       };
     });
-  }, [modificationRequests, goalsMap, activeInjuriesByUserId, userProfilesById]);
+  }, [modificationRequests, goalsMap, activeInjuriesByUserId, userProfilesById, t]);
 
   const filteredRequests = useMemo(() => {
     return enrichedRequests.filter((request) => {
@@ -698,7 +737,7 @@ export function AIPlanRequests() {
     if (!canApprove) {
       setToast({
         type: "error",
-        message: "This request does not have a valid plan preview yet.",
+        message: t("aiRequests.noPlanPreview"),
       });
       return;
     }
@@ -707,7 +746,7 @@ export function AIPlanRequests() {
       await approveMutation.mutateAsync(request);
       setToast({
         type: "success",
-        message: "Plan approved and saved successfully.",
+        message: t("aiRequests.planApproved"),
       });
       await refreshAll();
       if (expandedRequest === requestId) {
@@ -717,7 +756,7 @@ export function AIPlanRequests() {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to approve and save the plan.",
+        message: t("aiRequests.planApproveFailed"),
       });
     }
   }
@@ -813,7 +852,7 @@ export function AIPlanRequests() {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to load request details.",
+        message: t("aiRequests.detailsFailed"),
       });
     } finally {
       setLoadingDetailsId(null);
@@ -934,11 +973,11 @@ export function AIPlanRequests() {
         [key]:
           filteredResults.length > 0
             ? ""
-            : `No new exercises found for "${query}".`,
+            : `${t("aiRequests.noNewExercisesFor")} "${query}".`,
       }));
     } catch (error) {
       console.error(error);
-      const message = getApiErrorMessage(error, "Failed to search exercises.");
+      const message = getApiErrorMessage(error, t("aiRequests.searchFailed"));
       setModExerciseResultsByDay((current) => ({
         ...current,
         [key]: [],
@@ -1044,14 +1083,14 @@ export function AIPlanRequests() {
       setEditingModificationId(null);
       setToast({
         type: "success",
-        message: "Request updated successfully.",
+        message: t("aiRequests.updated"),
       });
       await refetchModificationRequests();
     } catch (error) {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to update request.",
+        message: t("aiRequests.updateFailed"),
       });
     }
   }
@@ -1061,7 +1100,7 @@ export function AIPlanRequests() {
       await deleteMutation.mutateAsync(requestId);
       setToast({
         type: "success",
-        message: "Request deleted successfully.",
+        message: t("aiRequests.deleted"),
       });
       if (expandedRequest === requestId) {
         setExpandedRequest(null);
@@ -1071,7 +1110,7 @@ export function AIPlanRequests() {
       console.error(error);
       setToast({
         type: "error",
-        message: "Failed to delete request.",
+        message: t("aiRequests.deleteFailed"),
       });
     }
   }
@@ -1099,11 +1138,11 @@ export function AIPlanRequests() {
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827] break-words">
-                  Training Plan Requests
+                  {t("aiRequests.trainingTitle")}
                 </h1>
               </div>
               <p className="text-gray-500 text-base lg:text-lg">
-                Review AI-generated and modified training plans
+                {t("aiRequests.trainingSubtitle")}
               </p>
             </div>
 
@@ -1117,30 +1156,30 @@ export function AIPlanRequests() {
               ) : (
                 <RefreshCw className="mr-2 w-4 h-4" />
               )}
-              Refresh
+              {t("common.refresh")}
             </Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <StatCard
-              title="Total Requests"
+              title={t("aiRequests.totalRequests")}
               value={totalRequests}
               icon={<Sparkles className="w-6 h-6 text-blue-600" />}
             />
             <StatCard
-              title="Pending Review"
+              title={t("aiRequests.pendingReview")}
               value={pendingReviewCount}
               valueClassName="text-amber-600"
               icon={<Clock className="w-6 h-6 text-amber-600" />}
             />
             <StatCard
-              title="Generated Plans"
+              title={t("aiRequests.generatedPlans")}
               value={generatedCount}
               valueClassName="text-[#111827]"
               icon={<GitBranch className="w-6 h-6 text-cyan-600" />}
             />
             <StatCard
-              title="Modification Requests"
+              title={t("aiRequests.modificationRequests")}
               value={modificationCount}
               valueClassName="text-[#111827]"
               icon={<RefreshCw className="w-6 h-6 text-violet-600" />}
@@ -1150,7 +1189,7 @@ export function AIPlanRequests() {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search by member name, request ID, plan reference, goal, or type..."
+              placeholder={t("aiRequests.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-14 bg-white border-gray-200 text-[#111827] placeholder:text-gray-400 rounded-xl text-base"
@@ -1161,7 +1200,7 @@ export function AIPlanRequests() {
         {isLoading ? (
           <div className="py-20 flex items-center justify-center text-gray-600">
             <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-            Loading plan requests...
+            {t("aiRequests.loadingTraining")}
           </div>
         ) : (
           <div className="space-y-6">
@@ -1251,7 +1290,7 @@ export function AIPlanRequests() {
                               className={`px-3 py-1 rounded-lg border ${status.bg} ${status.border}`}
                             >
                               <span className={`text-sm font-bold ${status.text}`}>
-                                {status.label}
+                                {getRequestStatusLabel(modRequest.status, t)}
                               </span>
                             </div>
 
@@ -1259,7 +1298,7 @@ export function AIPlanRequests() {
                               className={`px-3 py-1 rounded-lg border ${source.bg} ${source.border}`}
                             >
                               <span className={`text-sm font-bold ${source.text}`}>
-                                {source.label}
+                                {getRequestSourceLabel(sourceKey, t)}
                               </span>
                             </div>
                           </div>
@@ -1267,28 +1306,28 @@ export function AIPlanRequests() {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <RefreshCw className="w-4 h-4" />
-                              Request ID:{" "}
+                              {t("aiRequests.requestId")}:{" "}
                               <strong className="text-[#111827]">
                                 {modRequest.id}
                               </strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Plan Ref:{" "}
+                              {t("aiRequests.planRef")}:{" "}
                               <strong className="text-[#111827]">
-                                {modRequest.planId || "Generated request"}
+                                {modRequest.planId || t("aiRequests.generatedRequest")}
                               </strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Version:{" "}
+                              {t("aiRequests.version")}:{" "}
                               <strong className="text-[#111827]">
                                 {modRequest.version}
                               </strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Goal:{" "}
+                              {t("aiRequests.goal")}:{" "}
                               <strong className="text-[#111827]">
                                 {modRequest.displayGoal}
                               </strong>
@@ -1302,7 +1341,7 @@ export function AIPlanRequests() {
 
                           {modRequest.displayTargetWeight ? (
                             <div className="mt-2 text-sm text-gray-500">
-                              Target Weight:{" "}
+                              {t("aiRequests.targetWeight")}:{" "}
                               <strong className="text-[#111827]">
                                 {modRequest.displayTargetWeight}
                               </strong>
@@ -1311,7 +1350,7 @@ export function AIPlanRequests() {
 
                           {activeInjuryNames.length > 0 ? (
                             <div className="mt-2 text-sm text-rose-700">
-                              Active Injuries:{" "}
+                              {t("aiRequests.activeInjuries")}:{" "}
                               <strong>{activeInjuryNames.join(", ")}</strong>
                             </div>
                           ) : null}
@@ -1331,12 +1370,12 @@ export function AIPlanRequests() {
                         ) : isExpanded ? (
                           <>
                             <ChevronUp className="mr-2 w-4 h-4" />
-                            Collapse
+                            {t("aiRequests.collapse")}
                           </>
                         ) : (
                           <>
                             <ChevronDown className="mr-2 w-4 h-4" />
-                            View Details
+                            {t("aiRequests.viewDetails")}
                           </>
                         )}
                       </Button>
@@ -1347,7 +1386,7 @@ export function AIPlanRequests() {
                     <div className="p-6 space-y-6 bg-[#FCFDFD]">
                       <SectionCard
                         icon={<Send className="w-5 h-5 text-amber-600" />}
-                        title="User Request"
+                        title={t("aiRequests.userRequest")}
                         titleClassName="text-[#111827]"
                       >
                         <p className="text-gray-600 leading-relaxed break-words">
@@ -1358,7 +1397,7 @@ export function AIPlanRequests() {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <SectionCard
                           icon={<User className="w-5 h-5 text-[#0D7D6D]" />}
-                          title="Request Context"
+                          title={t("aiRequests.requestContext")}
                           titleClassName="text-[#111827]"
                         >
                           <div className="space-y-3 text-sm text-gray-700">
@@ -1366,7 +1405,7 @@ export function AIPlanRequests() {
                               <User className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
-                                  User:
+                                  {t("aiRequests.user")}:
                                 </span>{" "}
                                 {detail?.user?.name ?? modRequest.userName}
                               </div>
@@ -1376,7 +1415,7 @@ export function AIPlanRequests() {
                               <Mail className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
-                                  Email:
+                                  {t("common.email")}:
                                 </span>{" "}
                                 {detail?.user?.email ?? "N/A"}
                               </div>
@@ -1386,7 +1425,7 @@ export function AIPlanRequests() {
                               <Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
-                                  Goal:
+                                  {t("aiRequests.goal")}:
                                 </span>{" "}
                                 {modRequest.displayGoal}
                               </div>
@@ -1397,7 +1436,7 @@ export function AIPlanRequests() {
                                 <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
                                 <div>
                                   <span className="font-semibold text-[#111827]">
-                                    Target Weight:
+                                    {t("aiRequests.targetWeight")}:
                                   </span>{" "}
                                   {modRequest.displayTargetWeight}
                                 </div>
@@ -1408,11 +1447,11 @@ export function AIPlanRequests() {
                               <Dumbbell className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
-                                  Program:
+                                  {t("aiRequests.program")}:
                                 </span>{" "}
                                 {detail?.program_version?.name ??
                                   (modRequest.source === "generated"
-                                    ? "Generated training plan"
+                                    ? t("aiRequests.generatedTrainingPlan")
                                     : modRequest.planId
                                       ? `Plan ${modRequest.planId}`
                                       : "N/A")}
@@ -1423,7 +1462,7 @@ export function AIPlanRequests() {
                               <Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />
                               <div>
                                 <span className="font-semibold text-[#111827]">
-                                  Level:
+                                  {t("aiRequests.level")}:
                                 </span>{" "}
                                 {displayLevel}
                               </div>
@@ -1434,7 +1473,7 @@ export function AIPlanRequests() {
                                 <Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />
                                 <div>
                                   <span className="font-semibold text-[#111827]">
-                                    Profile Preferences:
+                                    {t("aiRequests.profilePreferences")}:
                                   </span>{" "}
                                   {modRequest.profile.preferences}
                                 </div>
@@ -1446,7 +1485,7 @@ export function AIPlanRequests() {
                                 <AlertCircle className="w-4 h-4 mt-0.5 text-gray-500" />
                                 <div>
                                   <span className="font-semibold text-[#111827]">
-                                    Medical Conditions:
+                                    {t("aiRequests.medicalConditions")}:
                                   </span>{" "}
                                   {modRequest.profile.medical_conditions}
                                 </div>
@@ -1457,7 +1496,7 @@ export function AIPlanRequests() {
                               <>
                                 <div className="border-t border-gray-100 pt-3">
                                   <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
-                                    Injury Context
+                                    {t("aiRequests.injuryContext")}
                                   </p>
                                 </div>
 
@@ -1466,7 +1505,7 @@ export function AIPlanRequests() {
                                     <RefreshCw className="w-4 h-4 mt-0.5 text-gray-500" />
                                     <div>
                                       <span className="font-semibold text-[#111827]">
-                                        Injury ID:
+                                        {t("aiRequests.injuryId")}:
                                       </span>{" "}
                                       {injuryId}
                                     </div>
@@ -1478,7 +1517,7 @@ export function AIPlanRequests() {
                                     <HeartPulse className="w-4 h-4 mt-0.5 text-gray-500" />
                                     <div>
                                       <span className="font-semibold text-[#111827]">
-                                        Injury Type:
+                                        {t("aiRequests.injuryType")}:
                                       </span>{" "}
                                       {feedback.injury_type}
                                     </div>
@@ -1490,7 +1529,7 @@ export function AIPlanRequests() {
                                     <ShieldAlert className="w-4 h-4 mt-0.5 text-gray-500" />
                                     <div>
                                       <span className="font-semibold text-[#111827]">
-                                        Severity:
+                                        {t("aiRequests.severity")}:
                                       </span>{" "}
                                       {toTitleCase(feedback.severity)}
                                     </div>
@@ -1502,7 +1541,7 @@ export function AIPlanRequests() {
                                     <Check className="w-4 h-4 mt-0.5 text-gray-500" />
                                     <div>
                                       <span className="font-semibold text-[#111827]">
-                                        Injury Status:
+                                        {t("aiRequests.injuryStatus")}:
                                       </span>{" "}
                                       {toTitleCase(feedback.status)}
                                     </div>
@@ -1527,7 +1566,7 @@ export function AIPlanRequests() {
                               <>
                                 <div className="border-t border-gray-100 pt-3">
                                   <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
-                                    Active Injuries
+                                    {t("aiRequests.activeInjuries")}
                                   </p>
                                 </div>
 
@@ -1578,13 +1617,13 @@ export function AIPlanRequests() {
 
                         <SectionCard
                           icon={<AlertCircle className="w-5 h-5 text-amber-600" />}
-                          title="Exercise Preferences"
+                          title={t("aiRequests.exercisePreferences")}
                           titleClassName="text-[#111827]"
                         >
                           <div className="space-y-4 text-sm text-gray-700">
                             <div>
                               <p className="font-semibold text-[#111827] mb-2">
-                                Preferred Exercises
+                                {t("aiRequests.preferredExercises")}
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {feedback?.liked_exercises?.length ? (
@@ -1598,7 +1637,7 @@ export function AIPlanRequests() {
                                   ))
                                 ) : (
                                   <span className="text-gray-500">
-                                    No request-level preferred exercises.
+                                    {t("aiRequests.noPreferredExercises")}
                                   </span>
                                 )}
                               </div>
@@ -1606,7 +1645,7 @@ export function AIPlanRequests() {
 
                             <div>
                               <p className="font-semibold text-[#111827] mb-2">
-                                Avoid Exercises
+                                {t("aiRequests.avoidExercises")}
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {feedback?.disliked_exercises?.length ? (
@@ -1620,7 +1659,7 @@ export function AIPlanRequests() {
                                   ))
                                 ) : (
                                   <span className="text-gray-500">
-                                    No request-level avoided exercises.
+                                    {t("aiRequests.noAvoidedExercises")}
                                   </span>
                                 )}
                               </div>
@@ -1631,7 +1670,7 @@ export function AIPlanRequests() {
 
                       <SectionCard
                         icon={<ShieldAlert className="w-5 h-5 text-amber-600" />}
-                        title="AI Safety Context"
+                        title={t("aiRequests.aiSafetyContext")}
                         titleClassName="text-amber-700"
                         wrapperClassName={
                           hasSafetyContext
@@ -1646,7 +1685,7 @@ export function AIPlanRequests() {
                               .map((group) => (
                                 <div key={group.title}>
                                   <p className="font-semibold text-[#111827] mb-2 text-sm">
-                                    {group.title}
+                                    {getSafetyGroupTitle(group.title)}
                                   </p>
                                   <div className="flex flex-wrap gap-2">
                                     {group.items.map((item, idx) => (
@@ -1664,23 +1703,18 @@ export function AIPlanRequests() {
                             {modRequest.activeInjuries.length > 0 &&
                             !hasInjurySafetyContext ? (
                               <p className="text-sm text-amber-700 font-semibold">
-                                Active injuries exist, but the AI response did not
-                                return injury-specific warnings, restrictions,
-                                alternatives, or changed-exercise details.
+                                {t("aiRequests.activeInjuriesNoAiContext")}
                               </p>
                             ) : null}
                           </div>
                         ) : (
                           <div className="space-y-2 text-sm text-gray-600">
                             <p>
-                              No AI injury warnings, restrictions, alternatives, or
-                              changed-exercise details were returned for this request.
+                              {t("aiRequests.noAiInjuryContext")}
                             </p>
                             {modRequest.activeInjuries.length > 0 ? (
                               <p className="text-amber-700 font-semibold">
-                                Active injuries exist for this member, so coach review
-                                should treat the generated exercises as needing manual
-                                safety screening.
+                                {t("aiRequests.activeInjuriesNeedReview")}
                               </p>
                             ) : null}
                           </div>
@@ -1689,7 +1723,7 @@ export function AIPlanRequests() {
 
                       <SectionCard
                         icon={<Sparkles className="w-5 h-5 text-cyan-600" />}
-                        title="AI Changes Summary"
+                        title={t("aiRequests.aiChangesSummary")}
                         titleClassName="text-cyan-700"
                         wrapperClassName="bg-cyan-50 border-cyan-200"
                       >
@@ -1707,7 +1741,7 @@ export function AIPlanRequests() {
                           </ul>
                         ) : (
                           <p className="text-sm text-gray-600">
-                            No summarized changes were returned.
+                            {t("aiRequests.noChanges")}
                           </p>
                         )}
                       </SectionCard>
@@ -1717,14 +1751,14 @@ export function AIPlanRequests() {
                           <div className="flex items-center gap-2">
                             <Dumbbell className="w-5 h-5 text-[#0D7D6D]" />
                             <h4 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827]">
-                              Updated Plan Preview
+                              {t("aiRequests.updatedPlanPreview")}
                             </h4>
                           </div>
 
                           <div className="bg-white border border-gray-200 rounded-xl p-4">
                             <div className="flex items-center gap-2">
                               <span className="text-sm text-gray-500">
-                                Duration:
+                                {t("sessions.duration")}:
                               </span>
                               <span className="text-sm font-bold text-[#111827]">
                                 {modRequest.modifiedPlan.duration}
@@ -1743,7 +1777,7 @@ export function AIPlanRequests() {
                                 </div>
                                 <div className="min-w-0">
                                   <h5 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827]">
-                                    Day {daySchedule.day}
+                                    {t("sessions.day")} {daySchedule.day}
                                   </h5>
                                   <p className="text-sm text-gray-500 break-words">
                                     {daySchedule.title}
@@ -1756,23 +1790,23 @@ export function AIPlanRequests() {
                                   <thead>
                                     <tr className="border-b border-gray-100">
                                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                        Exercise
+                                        {t("aiRequests.exercise")}
                                       </th>
                                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
                                         Difficulty
                                       </th>
                                       <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                        Sets
+                                        {t("aiRequests.sets")}
                                       </th>
                                       <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                        Reps
+                                        {t("aiRequests.reps")}
                                       </th>
                                       <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                        Rest
+                                        {t("aiRequests.rest")}
                                       </th>
                                       {isEditing ? (
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Actions
+                                          {t("common.actions")}
                                         </th>
                                       ) : null}
                                     </tr>
@@ -1917,7 +1951,7 @@ export function AIPlanRequests() {
                                                 })
                                               );
                                             }}
-                                            placeholder="Search exercises to add..."
+                                            placeholder={t("aiRequests.searchExercisesPlaceholder")}
                                             className="bg-white border-gray-200 text-[#111827]"
                                           />
                                           <Button
@@ -1934,7 +1968,7 @@ export function AIPlanRequests() {
                                             ) : (
                                               <>
                                                 <Search className="mr-2 w-4 h-4" />
-                                                Search
+                                                {t("common.search")}
                                               </>
                                             )}
                                           </Button>
@@ -1958,7 +1992,7 @@ export function AIPlanRequests() {
                                                     {item.name}
                                                   </p>
                                                   <p className="text-sm text-gray-500 break-words">
-                                                    {item.muscleGroup ?? "Unknown group"} •{" "}
+                                                    {item.muscleGroup ?? t("aiRequests.unknownGroup")} •{" "}
                                                     {item.difficulty}
                                                   </p>
                                                 </div>
@@ -1974,7 +2008,7 @@ export function AIPlanRequests() {
                                                   className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 sm:w-auto w-full"
                                                 >
                                                   <Plus className="mr-2 w-4 h-4" />
-                                                  Add
+                                                  {t("common.add")}
                                                 </Button>
                                               </div>
                                             ))}
@@ -1991,19 +2025,19 @@ export function AIPlanRequests() {
                       ) : (
                         <SectionCard
                           icon={<AlertCircle className="w-5 h-5 text-amber-600" />}
-                          title="Updated Plan Preview"
+                          title={t("aiRequests.updatedPlanPreview")}
                           titleClassName="text-amber-700"
                           wrapperClassName="bg-amber-50 border-amber-200"
                         >
                           <p className="text-sm text-amber-700">
-                            This request does not have a valid plan preview yet.
+                            {t("aiRequests.noPlanPreview")}
                           </p>
                         </SectionCard>
                       )}
 
                       <SectionCard
                         icon={<Sparkles className="w-5 h-5 text-blue-600" />}
-                        title="AI Recommendations"
+                        title={t("aiRequests.aiRecommendations")}
                         titleClassName="text-blue-700"
                         wrapperClassName="bg-blue-50 border-blue-200"
                       >
@@ -2020,7 +2054,7 @@ export function AIPlanRequests() {
                           </div>
                         ) : (
                           <p className="text-sm text-gray-600">
-                            No recommendations returned.
+                            {t("aiRequests.noRecommendations")}
                           </p>
                         )}
                       </SectionCard>
@@ -2040,7 +2074,7 @@ export function AIPlanRequests() {
                               ) : (
                                 <Save className="mr-2 w-5 h-5" />
                               )}
-                              Save Changes
+                              {t("aiRequests.saveChanges")}
                             </Button>
                           ) : (
                             <Button
@@ -2048,7 +2082,7 @@ export function AIPlanRequests() {
                               className="flex-1 h-14 bg-amber-500 hover:bg-amber-600 text-white text-base font-semibold"
                             >
                               <Edit2 className="mr-2 w-5 h-5" />
-                              Edit Request
+                              {t("aiRequests.editRequest")}
                             </Button>
                           )}
 
@@ -2062,7 +2096,7 @@ export function AIPlanRequests() {
                             ) : (
                               <Check className="mr-2 w-5 h-5" />
                             )}
-                            Approve & Save Plan
+                            {t("aiRequests.approveSavePlan")}
                           </Button>
 
                           <Button
@@ -2076,7 +2110,7 @@ export function AIPlanRequests() {
                             ) : (
                               <Trash2 className="mr-2 w-5 h-5" />
                             )}
-                            Delete
+                            {t("common.delete")}
                           </Button>
 
                           <Button
@@ -2088,7 +2122,7 @@ export function AIPlanRequests() {
                             className="h-14 px-6 border-gray-200 text-gray-600 hover:bg-gray-50 text-base font-semibold"
                           >
                             <X className="mr-2 w-5 h-5" />
-                            Close
+                            {t("common.close")}
                           </Button>
                         </div>
                       </div>
@@ -2101,8 +2135,8 @@ export function AIPlanRequests() {
             {filteredRequests.length === 0 ? (
               <EmptyState
                 icon={<RefreshCw className="w-10 h-10 text-gray-400" />}
-                title="No training plan requests found"
-                description="There are no generated or modification training requests right now."
+                title={t("aiRequests.noTrainingTitle")}
+                description={t("aiRequests.noTrainingDescription")}
               />
             ) : null}
           </div>

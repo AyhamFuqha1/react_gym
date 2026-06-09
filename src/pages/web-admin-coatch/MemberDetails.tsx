@@ -56,10 +56,12 @@ import {
   type PlanFormState,
   type TabKey,
 } from "../../utils/memberDetails";
+import { useTranslation } from "../../i18n";
 
 export function MemberDetails() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const { memberId } = useParams();
   const queryClient = useQueryClient();
 
@@ -129,7 +131,7 @@ export function MemberDetails() {
       ]);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to renew subscription");
+      setError(err?.response?.data?.message || t("memberDetails.renewFailed"));
     },
   });
 
@@ -143,7 +145,7 @@ export function MemberDetails() {
       ]);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to freeze subscription");
+      setError(err?.response?.data?.message || t("memberDetails.freezeFailed"));
     },
   });
 
@@ -157,7 +159,7 @@ export function MemberDetails() {
       ]);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to resume subscription");
+      setError(err?.response?.data?.message || t("memberDetails.resumeFailed"));
     },
   });
 
@@ -169,7 +171,7 @@ export function MemberDetails() {
       await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to create plan");
+      setError(err?.response?.data?.message || t("memberDetails.createPlanFailed"));
     },
   });
 
@@ -186,7 +188,7 @@ export function MemberDetails() {
       await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to update plan");
+      setError(err?.response?.data?.message || t("memberDetails.updatePlanFailed"));
     },
   });
 
@@ -198,7 +200,7 @@ export function MemberDetails() {
       await queryClient.invalidateQueries({ queryKey: ["plan-options"] });
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.message || "Failed to delete plan");
+      setError(err?.response?.data?.message || t("memberDetails.deletePlanFailed"));
     },
   });
 
@@ -238,7 +240,7 @@ export function MemberDetails() {
     [plans, selectedManagePlanId]
   );
 
-  const currentPlanName = memberRow?.plan_name || "No Plan";
+  const currentPlanName = memberRow?.plan_name || t("memberDetails.noPlan");
   const rawStatus = (
     subscriptionStatusOverride ??
     memberRow?.status ??
@@ -303,12 +305,12 @@ export function MemberDetails() {
 
   const openRenewDialog = () => {
     if (displayStatus === "frozen") {
-      setError("This member has a frozen subscription. Resume it before renewing.");
+      setError(t("memberDetails.frozenRenewBlocked"));
       return;
     }
 
     if (hasActiveSubscription) {
-      setError("This member already has an active subscription and cannot be renewed yet.");
+      setError(t("memberDetails.activeRenewBlockedShort"));
       return;
     }
 
@@ -320,13 +322,13 @@ export function MemberDetails() {
     if (!selectedPlan) return;
 
     if (displayStatus === "frozen") {
-      setError("This member has a frozen subscription. Resume it before renewing.");
+      setError(t("memberDetails.frozenRenewBlocked"));
       setIsRenewDialogOpen(false);
       return;
     }
 
     if (hasActiveSubscription) {
-      setError("This member already has an active subscription and cannot be renewed yet.");
+      setError(t("memberDetails.activeRenewBlockedShort"));
       setIsRenewDialogOpen(false);
       return;
     }
@@ -421,15 +423,22 @@ export function MemberDetails() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Loading member details...
+        {t("memberDetails.loading")}
       </div>
     );
   }
 
   const displayName =
-    overview?.name || nutrition?.user?.name || memberRow?.user_name || "Member";
-  const displayEmail = overview?.email || nutrition?.user?.email || "No email";
+    overview?.name || nutrition?.user?.name || memberRow?.user_name || t("members.member");
+  const displayEmail = overview?.email || nutrition?.user?.email || t("common.noEmail");
   const displayInitials = getInitials(displayName);
+
+  function getLocalizedSubscriptionStatus(status: string) {
+    if (status === "active") return t("common.active");
+    if (status === "frozen") return t("common.frozen");
+    if (status === "expired") return t("common.expired");
+    return t("members.inactive");
+  }
 
   return (
     <div className="space-y-6">
@@ -438,8 +447,8 @@ export function MemberDetails() {
         onClick={() => navigate(`${dashboardBase}/members`)}
         className="text-gray-600 hover:text-gray-900 -ml-2"
       >
-        <ArrowLeft className="mr-2 w-4 h-4" />
-        Back to Members
+        <ArrowLeft className="mr-2 w-4 h-4 rtl-flip" />
+        {t("memberDetails.backToMembers")}
       </Button>
 
       {error ? (
@@ -472,7 +481,7 @@ export function MemberDetails() {
                       : "bg-gray-50 text-gray-600 border border-gray-100"
                   }`}
                 >
-                  {capitalizeWords(displayStatus)}
+                  {getLocalizedSubscriptionStatus(displayStatus)}
                 </span>
 
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-100 flex items-center gap-1">
@@ -487,19 +496,24 @@ export function MemberDetails() {
               </p>
 
               <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
-                <span>Member ID: {memberIdNumber}</span>
-                <span>End Date: {formatDate(currentEndDate)}</span>
+                <span>ID: {memberIdNumber}</span>
+                <span>
+                  {t("members.endDate")}: {formatDate(currentEndDate)}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="text-right min-w-[180px]">
-            <p className="text-sm text-gray-500 mb-1">Progress to Target</p>
+            <p className="text-sm text-gray-500 mb-1">
+              {t("memberDetails.targetWeight")}
+            </p>
             <p className="text-3xl font-bold text-[#0D7D6D]">
               {Math.round(progressValue)}%
             </p>
             <p className="text-xs text-gray-400">
-              Goal: {capitalizeWords(overview?.goal_type)}
+              {t("memberDetails.fitnessGoal")}:{" "}
+              {capitalizeWords(overview?.goal_type)}
             </p>
           </div>
         </div>
@@ -507,9 +521,13 @@ export function MemberDetails() {
 
       <div className="bg-white rounded-2xl p-2 shadow-sm border border-gray-100 flex flex-wrap gap-2">
         {[
-          { key: "overview", label: "Overview", icon: User },
-          { key: "subscription", label: "Subscription", icon: CreditCard },
-          { key: "nutrition", label: "Nutrition", icon: Utensils },
+          { key: "overview", label: t("memberDetails.overview"), icon: User },
+          {
+            key: "subscription",
+            label: t("memberDetails.subscription"),
+            icon: CreditCard,
+          },
+          { key: "nutrition", label: t("memberDetails.nutrition"), icon: Utensils },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -535,17 +553,17 @@ export function MemberDetails() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-5">
-              Member Profile
+              {t("memberDetails.profileOverview")}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
-                { label: "Full Name", value: displayName },
-                { label: "Email", value: displayEmail },
-                { label: "Gender", value: capitalizeWords(overview?.gender) },
-                { label: "Age", value: overview?.age ?? "N/A" },
-                { label: "Height", value: overview?.height ? `${overview.height} cm` : "N/A" },
-                { label: "Weight", value: overview?.weight ? `${overview.weight} kg` : "N/A" },
+                { label: t("common.name"), value: displayName },
+                { label: t("common.email"), value: displayEmail },
+                { label: t("memberDetails.gender"), value: capitalizeWords(overview?.gender) },
+                { label: t("memberDetails.age"), value: overview?.age ?? "N/A" },
+                { label: t("memberDetails.height"), value: overview?.height ? `${overview.height} cm` : "N/A" },
+                { label: t("memberDetails.weight"), value: overview?.weight ? `${overview.weight} kg` : "N/A" },
               ].map((item, index) => (
                 <div key={index} className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">{item.label}</p>
@@ -557,14 +575,17 @@ export function MemberDetails() {
             <div className="mt-6 bg-gray-50 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="w-4 h-4 text-rose-500" />
-                <p className="font-semibold text-gray-900">Fitness Goal</p>
+                <p className="font-semibold text-gray-900">
+                  {t("memberDetails.fitnessGoal")}
+                </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 font-semibold">
                   {capitalizeWords(overview?.goal_type)}
                 </span>
                 <span className="text-sm text-gray-500">
-                  Target Weight: {overview?.target_weight ?? "N/A"}
+                  {t("memberDetails.targetWeight")}:{" "}
+                  {overview?.target_weight ?? "N/A"}
                 </span>
               </div>
             </div>
@@ -574,7 +595,9 @@ export function MemberDetails() {
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-2">
                 <Ruler className="w-4 h-4 text-blue-500" />
-                <p className="text-sm text-gray-500">Height</p>
+                <p className="text-sm text-gray-500">
+                  {t("memberDetails.height")}
+                </p>
               </div>
               <p className="text-4xl font-bold text-gray-900">
                 {overview?.height ? `${overview.height} cm` : "N/A"}
@@ -584,7 +607,9 @@ export function MemberDetails() {
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-2">
                 <Weight className="w-4 h-4 text-emerald-500" />
-                <p className="text-sm text-gray-500">Weight</p>
+                <p className="text-sm text-gray-500">
+                  {t("memberDetails.weight")}
+                </p>
               </div>
               <p className="text-4xl font-bold text-gray-900">
                 {overview?.weight ? `${overview.weight} kg` : "N/A"}
@@ -592,7 +617,9 @@ export function MemberDetails() {
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <p className="text-sm text-gray-500 mb-2">Progress to Target</p>
+              <p className="text-sm text-gray-500 mb-2">
+                {t("memberDetails.targetWeight")}
+              </p>
               <p className="text-4xl font-bold text-[#0D7D6D] mb-3">
                 {Math.round(progressValue)}%
               </p>
@@ -608,36 +635,50 @@ export function MemberDetails() {
             <div className="bg-gradient-to-br from-[#0D7D6D] to-[#14B8A6] rounded-2xl p-6 text-white shadow-lg">
               <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
                 <div>
-                  <p className="text-sm text-white/80 mb-2">Current Plan</p>
+                  <p className="text-sm text-white/80 mb-2">
+                    {t("memberDetails.currentPlan")}
+                  </p>
                   <h3 className="text-3xl font-['Plus_Jakarta_Sans',sans-serif] font-700">
                     {currentPlanName}
                   </h3>
                 </div>
 
                 <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30">
-                  <p className="text-2xl font-bold">{capitalizeWords(displayStatus)}</p>
+                  <p className="text-2xl font-bold">
+                    {getLocalizedSubscriptionStatus(displayStatus)}
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">Start Date</p>
-                  <p className="font-semibold">From renew action</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("members.startDate")}
+                  </p>
+                  <p className="font-semibold">{t("memberDetails.fromRenewAction")}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">End Date</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("members.endDate")}
+                  </p>
                   <p className="font-semibold">{formatDate(currentEndDate)}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">Days Left</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("members.daysLeft")}
+                  </p>
                   <p className="font-semibold">{remainingDays}</p>
                 </div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-white/80">Remaining Days</span>
-                  <span className="text-lg font-bold">{remainingDays} days</span>
+                  <span className="text-sm text-white/80">
+                    {t("members.daysLeft")}
+                  </span>
+                  <span className="text-lg font-bold">
+                    {remainingDays} {t("common.days")}
+                  </span>
                 </div>
                 <Progress
                   value={Math.min((remainingDays / 180) * 100, 100)}
@@ -649,7 +690,7 @@ export function MemberDetails() {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
                 <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-                  Available Plans
+                  {t("memberDetails.currentPlan")}
                 </h3>
 
                 {canManagePlans ? (
@@ -659,7 +700,7 @@ export function MemberDetails() {
                       className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
                     >
                       <BadgePlus className="mr-2 w-4 h-4" />
-                      Create Plan
+                      {t("memberDetails.createPlan")}
                     </Button>
 
                     <Button
@@ -668,7 +709,7 @@ export function MemberDetails() {
                       disabled={!selectedManagePlan}
                     >
                       <Pencil className="mr-2 w-4 h-4" />
-                      Update Plan
+                      {t("memberDetails.updatePlan")}
                     </Button>
 
                     <Button
@@ -678,7 +719,7 @@ export function MemberDetails() {
                       disabled={!selectedManagePlan}
                     >
                       <Trash2 className="mr-2 w-4 h-4" />
-                      Delete Plan
+                      {t("memberDetails.deletePlan")}
                     </Button>
                   </div>
                 ) : null}
@@ -686,7 +727,9 @@ export function MemberDetails() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {plans.length === 0 ? (
-                  <div className="text-sm text-gray-400">No plans available</div>
+                  <div className="text-sm text-gray-400">
+                    {t("memberDetails.noPlans")}
+                  </div>
                 ) : (
                   plans.map((plan) => {
                     const isSelected = selectedManagePlanId === plan.id;
@@ -708,7 +751,7 @@ export function MemberDetails() {
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3 mb-2">
-                          <p className="text-sm text-gray-500">Plan</p>
+                          <p className="text-sm text-gray-500">{t("members.plan")}</p>
                           <span
                             className={`text-[11px] px-2 py-1 rounded-full border font-semibold ${
                               Number(plan.is_active) === 1 || plan.is_active === true
@@ -717,8 +760,8 @@ export function MemberDetails() {
                             }`}
                           >
                             {Number(plan.is_active) === 1 || plan.is_active === true
-                              ? "Active"
-                              : "Inactive"}
+                              ? t("members.active")
+                              : t("members.inactive")}
                           </span>
                         </div>
 
@@ -729,7 +772,7 @@ export function MemberDetails() {
                           {plan.price}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {plan.duration_days} days
+                          {plan.duration_days} {t("common.days")}
                         </p>
                       </div>
                     );
@@ -742,7 +785,7 @@ export function MemberDetails() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-4">
-                Quick Actions
+                {t("memberDetails.quickActions")}
               </h3>
 
               <div className="space-y-3">
@@ -752,7 +795,7 @@ export function MemberDetails() {
                   disabled={!canRenew}
                 >
                   <Plus className="mr-2 w-4 h-4" />
-                  Renew Subscription
+                  {t("memberDetails.renewSubscription")}
                 </Button>
 
                 <Button
@@ -762,7 +805,7 @@ export function MemberDetails() {
                   disabled={!canFreeze}
                 >
                   <Ban className="mr-2 w-4 h-4" />
-                  Freeze Subscription
+                  {t("memberDetails.freezeSubscription")}
                 </Button>
 
                 <Button
@@ -772,26 +815,26 @@ export function MemberDetails() {
                   disabled={!canResume}
                 >
                   <PlayCircle className="mr-2 w-4 h-4" />
-                  Resume Subscription
+                  {t("memberDetails.resumeSubscription")}
                 </Button>
               </div>
 
               <div className="mt-4 space-y-2">
                 {hasActiveSubscription ? (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                    This member already has an active subscription. Renewal is disabled until the current subscription ends.
+                    {t("memberDetails.activeRenewBlocked")}
                   </p>
                 ) : null}
 
                 {displayStatus === "frozen" ? (
                   <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                    This subscription is currently frozen. You can resume it.
+                    {t("memberDetails.frozenCanResume")}
                   </p>
                 ) : null}
 
                 {displayStatus === "expired" ? (
                   <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
-                    This subscription has expired. Renewal is available.
+                    {t("memberDetails.expiredRenewAvailable")}
                   </p>
                 ) : null}
 
@@ -799,7 +842,7 @@ export function MemberDetails() {
                 displayStatus !== "frozen" &&
                 displayStatus !== "expired" ? (
                   <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                    This member does not currently have an active subscription.
+                    {t("memberDetails.noActiveSubscription")}
                   </p>
                 ) : null}
               </div>
@@ -808,33 +851,35 @@ export function MemberDetails() {
             {canManagePlans ? (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-4">
-                  Selected Plan
+                  {t("memberDetails.selectedPlan")}
                 </h3>
 
                 {selectedManagePlan ? (
                   <div className="space-y-3">
                     <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-xs text-gray-400 mb-1">Name</p>
+                      <p className="text-xs text-gray-400 mb-1">{t("common.name")}</p>
                       <p className="font-semibold text-gray-900 break-words">
                         {selectedManagePlan.name}
                       </p>
                     </div>
 
                     <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-xs text-gray-400 mb-1">Price</p>
+                      <p className="text-xs text-gray-400 mb-1">{t("memberDetails.price")}</p>
                       <p className="font-semibold text-gray-900">{selectedManagePlan.price}</p>
                     </div>
 
                     <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-xs text-gray-400 mb-1">Duration</p>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {t("memberDetails.durationDays")}
+                      </p>
                       <p className="font-semibold text-gray-900">
-                        {selectedManagePlan.duration_days} days
+                        {selectedManagePlan.duration_days} {t("common.days")}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400">
-                    Select a plan first to update or delete it.
+                    {t("memberDetails.selectPlanFirst")}
                   </p>
                 )}
               </div>
@@ -847,26 +892,34 @@ export function MemberDetails() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
             <div className="bg-gradient-to-br from-[#0D7D6D] to-[#14B8A6] rounded-2xl p-6 text-white shadow-lg">
-              <p className="text-sm text-white/80 mb-2">Nutrition Goal</p>
+              <p className="text-sm text-white/80 mb-2">
+                {t("memberDetails.fitnessGoal")}
+              </p>
               <h3 className="text-3xl font-['Plus_Jakarta_Sans',sans-serif] font-700 mb-4">
                 {capitalizeWords(overview?.goal_type)}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">Liked Foods</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("memberDetails.likedFoods")}
+                  </p>
                   <p className="text-3xl font-bold">
                     {nutrition?.user?.liked_foods?.length || 0}
                   </p>
                 </div>
                 <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">Disliked Foods</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("memberDetails.dislikedFoods")}
+                  </p>
                   <p className="text-3xl font-bold">
                     {nutrition?.user?.disliked_foods?.length || 0}
                   </p>
                 </div>
                 <div className="bg-white/10 rounded-xl p-4 border border-white/20">
-                  <p className="text-white/70 text-sm mb-1">Available Foods</p>
+                  <p className="text-white/70 text-sm mb-1">
+                    {t("memberDetails.availableFoods")}
+                  </p>
                   <p className="text-3xl font-bold">
                     {nutrition?.available_foods?.length || 0}
                   </p>
@@ -876,7 +929,7 @@ export function MemberDetails() {
 
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-5">
-                Available Foods
+                {t("memberDetails.availableFoods")}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -890,7 +943,8 @@ export function MemberDetails() {
                         <div>
                           <h4 className="font-semibold text-gray-900">{food.name}</h4>
                           <p className="text-sm text-gray-500 mt-1">
-                            Serving Size: {food.serving_size || "N/A"}
+                            {t("nutritionFoods.servingSize")}:{" "}
+                            {food.serving_size || "N/A"}
                           </p>
                         </div>
                         <span className="text-sm font-bold text-[#0D7D6D]">
@@ -900,22 +954,30 @@ export function MemberDetails() {
 
                       <div className="grid grid-cols-3 gap-2 mt-4 text-sm">
                         <div className="bg-white rounded-xl p-3">
-                          <p className="text-gray-400 text-xs">Protein</p>
+                          <p className="text-gray-400 text-xs">
+                            {t("nutritionFoods.protein")}
+                          </p>
                           <p className="font-semibold text-gray-900">{food.protein}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3">
-                          <p className="text-gray-400 text-xs">Carbs</p>
+                          <p className="text-gray-400 text-xs">
+                            {t("nutritionFoods.carbs")}
+                          </p>
                           <p className="font-semibold text-gray-900">{food.carbs}</p>
                         </div>
                         <div className="bg-white rounded-xl p-3">
-                          <p className="text-gray-400 text-xs">Fat</p>
+                          <p className="text-gray-400 text-xs">
+                            {t("nutritionFoods.fat")}
+                          </p>
                           <p className="font-semibold text-gray-900">{food.fat}</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-400">No foods available</div>
+                  <div className="text-sm text-gray-400">
+                    {t("memberDetails.noFoods")}
+                  </div>
                 )}
               </div>
             </div>
@@ -924,19 +986,20 @@ export function MemberDetails() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-4">
-                Goal
+                {t("memberDetails.fitnessGoal")}
               </h3>
               <span className="px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 font-semibold inline-block">
                 {capitalizeWords(overview?.goal_type)}
               </span>
               <p className="text-sm text-gray-500 mt-4">
-                Target Weight: {overview?.target_weight ?? "N/A"}
+                {t("memberDetails.targetWeight")}:{" "}
+                {overview?.target_weight ?? "N/A"}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900 mb-4">
-                Active Nutrition Plans
+                {t("memberDetails.activeNutritionPlans")}
               </h3>
               {nutrition?.user?.user_nutrition_plan_active?.length ? (
                 <div className="space-y-3">
@@ -950,7 +1013,9 @@ export function MemberDetails() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No active nutrition plans</p>
+                <p className="text-sm text-gray-400">
+                  {t("memberDetails.noActiveNutritionPlans")}
+                </p>
               )}
             </div>
           </div>
@@ -966,15 +1031,17 @@ export function MemberDetails() {
               </DialogTitle>
               <DialogDescription>
                 {hasActiveSubscription
-                  ? "This member already has an active subscription, so renewal is currently disabled."
-                  : "Choose a plan and renew this member subscription using the backend API"}
+                  ? t("memberDetails.renewDisabledDescription")
+                  : t("memberDetails.renewDescription")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6 mt-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {plans.length === 0 ? (
-                  <div className="text-sm text-gray-400">No plans available</div>
+                  <div className="text-sm text-gray-400">
+                    {t("memberDetails.noPlans")}
+                  </div>
                 ) : (
                   plans.map((plan) => (
                     <div
@@ -992,14 +1059,18 @@ export function MemberDetails() {
                           : "cursor-pointer border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
                       }`}
                     >
-                      <p className="text-sm text-gray-500 mb-2">Plan</p>
+                      <p className="text-sm text-gray-500 mb-2">
+                        {t("members.plan")}
+                      </p>
                       <h4 className="text-xl font-bold text-gray-900 mb-3 break-words">
                         {plan.name}
                       </h4>
                       <p className="text-3xl font-bold text-[#0D7D6D] mb-2 break-words">
                         {plan.price}
                       </p>
-                      <p className="text-xs text-gray-400">{plan.duration_days} days</p>
+                      <p className="text-xs text-gray-400">
+                        {plan.duration_days} {t("common.days")}
+                      </p>
                     </div>
                   ))
                 )}
@@ -1007,25 +1078,29 @@ export function MemberDetails() {
 
               {selectedPlanData && !hasActiveSubscription ? (
                 <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
-                  <h4 className="font-semibold text-gray-900 mb-4">Preview</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4">
+                    {t("memberDetails.preview")}
+                  </h4>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-4 text-sm">
-                      <span className="text-gray-600">Current End Date</span>
+                      <span className="text-gray-600">{t("memberDetails.currentEndDate")}</span>
                       <span className="font-semibold text-gray-900 text-right break-words">
                         {formatDate(currentEndDate)}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between gap-4 text-sm">
-                      <span className="text-gray-600">Added Duration</span>
+                      <span className="text-gray-600">{t("memberDetails.addedDuration")}</span>
                       <span className="font-semibold text-blue-600 text-right">
-                        +{selectedPlanData.duration_days} days
+                        +{selectedPlanData.duration_days} {t("common.days")}
                       </span>
                     </div>
 
                     <div className="pt-3 border-t border-blue-200 flex items-center justify-between gap-4">
-                      <span className="font-semibold text-gray-900">Total Amount</span>
+                      <span className="font-semibold text-gray-900">
+                        {t("memberDetails.totalAmount")}
+                      </span>
                       <span className="text-2xl font-bold text-[#0D7D6D] text-right break-words">
                         {selectedPlanData.price}
                       </span>
@@ -1036,7 +1111,8 @@ export function MemberDetails() {
 
               {hasActiveSubscription ? (
                 <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                  Renewal is blocked because this member still has {remainingDays} day(s) left in the current active subscription.
+                  {t("memberDetails.renewalBlockedPrefix")} {remainingDays}{" "}
+                  {t("memberDetails.renewalBlockedSuffix")}
                 </div>
               ) : null}
 
@@ -1049,7 +1125,7 @@ export function MemberDetails() {
                   }}
                   className="flex-1"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
 
                 <Button
@@ -1057,7 +1133,9 @@ export function MemberDetails() {
                   disabled={!selectedPlan || actionLoading || hasActiveSubscription}
                   className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
                 >
-                  {actionLoading ? "Processing..." : "Confirm Renewal"}
+                  {actionLoading
+                    ? t("common.processing")
+                    : t("memberDetails.confirmRenewal")}
                 </Button>
               </div>
             </div>
@@ -1071,17 +1149,17 @@ export function MemberDetails() {
             <DialogContent className="max-w-2xl rounded-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl">
-                  Create Plan
+                  {t("memberDetails.createPlan")}
                 </DialogTitle>
                 <DialogDescription>
-                  Create a new subscription plan using the plans API
+                  {t("memberDetails.createPlanDescription")}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-5 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>User ID</Label>
+                    <Label>{t("memberDetails.userId")}</Label>
                     <Input
                       type="number"
                       value={createPlanForm.user_id}
@@ -1095,7 +1173,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Plan Name</Label>
+                    <Label>{t("memberDetails.planName")}</Label>
                     <Input
                       value={createPlanForm.name}
                       onChange={(e) =>
@@ -1108,7 +1186,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Duration Days</Label>
+                    <Label>{t("memberDetails.durationDays")}</Label>
                     <Input
                       type="number"
                       value={createPlanForm.duration_days}
@@ -1122,7 +1200,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Price</Label>
+                    <Label>{t("memberDetails.price")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -1148,7 +1226,7 @@ export function MemberDetails() {
                       }))
                     }
                   />
-                  Active Plan
+                  {t("memberDetails.activePlan")}
                 </label>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -1157,7 +1235,7 @@ export function MemberDetails() {
                     onClick={() => setIsCreatePlanDialogOpen(false)}
                     className="flex-1"
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
 
                   <Button
@@ -1165,7 +1243,9 @@ export function MemberDetails() {
                     disabled={planActionLoading}
                     className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
                   >
-                    {planActionLoading ? "Processing..." : "Create Plan"}
+                    {planActionLoading
+                      ? t("common.processing")
+                      : t("memberDetails.createPlan")}
                   </Button>
                 </div>
               </div>
@@ -1176,17 +1256,17 @@ export function MemberDetails() {
             <DialogContent className="max-w-2xl rounded-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl">
-                  Update Plan
+                  {t("memberDetails.updatePlan")}
                 </DialogTitle>
                 <DialogDescription>
-                  Edit the selected plan using the plans API
+                  {t("memberDetails.editPlanDescription")}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-5 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>User ID</Label>
+                    <Label>{t("memberDetails.userId")}</Label>
                     <Input
                       type="number"
                       value={editPlanForm.user_id}
@@ -1200,7 +1280,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Plan Name</Label>
+                    <Label>{t("memberDetails.planName")}</Label>
                     <Input
                       value={editPlanForm.name}
                       onChange={(e) =>
@@ -1213,7 +1293,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Duration Days</Label>
+                    <Label>{t("memberDetails.durationDays")}</Label>
                     <Input
                       type="number"
                       value={editPlanForm.duration_days}
@@ -1227,7 +1307,7 @@ export function MemberDetails() {
                   </div>
 
                   <div>
-                    <Label>Price</Label>
+                    <Label>{t("memberDetails.price")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -1253,7 +1333,7 @@ export function MemberDetails() {
                       }))
                     }
                   />
-                  Active Plan
+                  {t("memberDetails.activePlan")}
                 </label>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -1262,7 +1342,7 @@ export function MemberDetails() {
                     onClick={() => setIsEditPlanDialogOpen(false)}
                     className="flex-1"
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
 
                   <Button
@@ -1270,7 +1350,9 @@ export function MemberDetails() {
                     disabled={planActionLoading}
                     className="flex-1 bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
                   >
-                    {planActionLoading ? "Processing..." : "Update Plan"}
+                    {planActionLoading
+                      ? t("common.processing")
+                      : t("memberDetails.updatePlan")}
                   </Button>
                 </div>
               </div>
@@ -1281,18 +1363,20 @@ export function MemberDetails() {
             <DialogContent className="max-w-lg rounded-2xl">
               <DialogHeader>
                 <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl">
-                  Delete Plan
+                  {t("memberDetails.deletePlan")}
                 </DialogTitle>
                 <DialogDescription>
-                  This action will delete the selected plan permanently.
+                  {t("memberDetails.deletePlanDescription")}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-5 mt-4">
                 <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
                   <p className="text-sm text-red-700">
-                    Are you sure you want to delete{" "}
-                    <span className="font-semibold">{selectedManagePlan?.name || "this plan"}</span>?
+                    {t("content.deletePrompt")}{" "}
+                    <span className="font-semibold">
+                      {selectedManagePlan?.name || t("memberDetails.thisPlan")}
+                    </span>?
                   </p>
                 </div>
 
@@ -1302,7 +1386,7 @@ export function MemberDetails() {
                     onClick={() => setIsDeletePlanDialogOpen(false)}
                     className="flex-1"
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
 
                   <Button
@@ -1310,7 +1394,9 @@ export function MemberDetails() {
                     disabled={planActionLoading}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                   >
-                    {planActionLoading ? "Deleting..." : "Delete Plan"}
+                    {planActionLoading
+                      ? t("common.deleting")
+                      : t("memberDetails.deletePlan")}
                   </Button>
                 </div>
               </div>

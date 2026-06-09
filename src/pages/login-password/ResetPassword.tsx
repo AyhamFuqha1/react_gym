@@ -5,9 +5,11 @@ import { Logo } from "../../components/Logo";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 import { resetPassword } from "../../services/auth";
+import { useTranslation } from "../../i18n";
 
 export function ResetPassword() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,14 +50,12 @@ export function ResetPassword() {
     e.preventDefault();
 
     if (!isPasswordValid) {
-      setError(
-        "Password must be at least 8 characters and include uppercase, lowercase, and a number."
-      );
+      setError(t("resetPassword.passwordInvalid"));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("resetPassword.passwordMismatch"));
       return;
     }
 
@@ -85,8 +85,7 @@ export function ResetPassword() {
       }, 2000);
     } catch (error: any) {
       setError(
-        error?.response?.data?.message ||
-          "Failed to reset password. Please try again."
+        error?.response?.data?.message || t("resetPassword.resetFailed")
       );
     } finally {
       setIsLoading(false);
@@ -103,11 +102,11 @@ export function ResetPassword() {
             </div>
 
             <h1 className="text-3xl font-bold text-foreground mb-4">
-              Password Reset Successfully!
+              {t("resetPassword.successTitle")}
             </h1>
 
             <p className="text-muted-foreground mb-6">
-              Your password has been updated. Redirecting to login...
+              {t("resetPassword.successSubtitle")}
             </p>
           </div>
         </div>
@@ -126,20 +125,20 @@ export function ResetPassword() {
 
         <div className="bg-card rounded-2xl shadow-2xl p-8">
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            Reset Password
+            {t("resetPassword.title")}
           </h1>
 
           <p className="text-muted-foreground mb-8">
-            Enter your new password below.
+            {t("resetPassword.subtitle")}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
               <Lock className="absolute left-4 top-[50px] size-5 text-muted-foreground" />
               <Input
-                label="New Password"
+                label={t("resetPassword.newPasswordLabel")}
                 type={showPassword ? "text" : "password"}
-                placeholder="Enter new password"
+                placeholder={t("resetPassword.newPasswordPlaceholder")}
                 className="pl-12 pr-12"
                 value={formData.password}
                 onChange={(e) => {
@@ -164,9 +163,9 @@ export function ResetPassword() {
             <div className="relative">
               <Lock className="absolute left-4 top-[50px] size-5 text-muted-foreground" />
               <Input
-                label="Confirm New Password"
+                label={t("resetPassword.confirmPasswordLabel")}
                 type={showConfirmPassword ? "text" : "password"}
-                placeholder="Re-enter new password"
+                placeholder={t("resetPassword.confirmPasswordPlaceholder")}
                 className="pl-12 pr-12"
                 value={formData.confirmPassword}
                 onChange={(e) => {
@@ -199,7 +198,7 @@ export function ResetPassword() {
 
             <div className="bg-muted/50 rounded-xl p-4">
               <p className="text-sm text-muted-foreground font-medium mb-2">
-                Password requirements:
+                {t("resetPassword.requirementsTitle")}
               </p>
 
               <ul className="text-xs space-y-1 list-disc list-inside">
@@ -212,7 +211,7 @@ export function ResetPassword() {
                       : "text-muted-foreground"
                   }
                 >
-                  At least 8 characters long
+                  {t("resetPassword.requirementMinLength")}
                 </li>
                 <li
                   className={
@@ -223,7 +222,7 @@ export function ResetPassword() {
                       : "text-muted-foreground"
                   }
                 >
-                  Include at least one uppercase letter
+                  {t("resetPassword.requirementUppercase")}
                 </li>
                 <li
                   className={
@@ -234,7 +233,7 @@ export function ResetPassword() {
                       : "text-muted-foreground"
                   }
                 >
-                  Include at least one lowercase letter
+                  {t("resetPassword.requirementLowercase")}
                 </li>
                 <li
                   className={
@@ -245,23 +244,23 @@ export function ResetPassword() {
                       : "text-muted-foreground"
                   }
                 >
-                  Include at least one number
+                  {t("resetPassword.requirementNumber")}
                 </li>
               </ul>
             </div>
 
             <Button type="submit" isLoading={isLoading}>
-              Reset Password
+              {t("resetPassword.submit")}
             </Button>
 
             <div className="pt-6 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                Remember your password?{" "}
+                {t("resetPassword.rememberPassword")}{" "}
                 <Link
                   to="/"
                   className="text-primary hover:text-accent transition-colors font-medium"
                 >
-                  Back to login
+                  {t("resetPassword.backToLogin")}
                 </Link>
               </p>
             </div>

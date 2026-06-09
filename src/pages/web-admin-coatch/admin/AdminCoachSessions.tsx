@@ -35,6 +35,7 @@ import { useAdminCancelSession } from "../../../hooks/coachSessions/mutations/us
 import { useAdminRestoreSession } from "../../../hooks/coachSessions/mutations/useAdminRestoreSession";
 import { useAdminSessionDetails } from "../../../hooks/coachSessions/queries/useAdminSessionDetails";
 import { useAdminSessions } from "../../../hooks/coachSessions/queries/useAdminSessions";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 type SessionDisplayStatus = "available" | "full" | "cancelled";
 type StatusFilter = "all" | "available" | "full" | "cancelled";
@@ -129,6 +130,19 @@ function getStatusMeta(value?: string | null): StatusMeta {
     className: "bg-gray-100 text-gray-600 border-gray-200",
     icon: AlertCircle,
   };
+}
+
+function getSessionStatusLabel(
+  value: SessionDisplayStatus,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<SessionDisplayStatus, TranslationKey> = {
+    available: "common.available",
+    full: "common.full",
+    cancelled: "common.cancelled",
+  };
+
+  return t(labels[value]);
 }
 
 function getSessionDisplayStatus(session: CoachSession): SessionDisplayStatus {
@@ -396,6 +410,7 @@ function bookingStatusClass(status: string) {
 }
 
 export function AdminCoachSessions() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -505,7 +520,7 @@ export function AdminCoachSessions() {
       await cancelMutation.mutateAsync(sessionToCancel.id);
       setToast({
         type: "success",
-        message: "Session cancelled successfully.",
+        message: t("sessions.cancelled"),
       });
       setSessionToCancel(null);
     } catch (error) {
@@ -522,7 +537,7 @@ export function AdminCoachSessions() {
       await restoreMutation.mutateAsync(session.id);
       setToast({
         type: "success",
-        message: "Session restored successfully.",
+        message: t("adminSessions.restored"),
       });
     } catch (error) {
       console.error("Failed to restore session:", error);
@@ -540,10 +555,10 @@ export function AdminCoachSessions() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Coach Sessions
+            {t("adminSessions.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Manage and monitor coach sessions and bookings
+            {t("adminSessions.subtitle")}
           </p>
         </div>
       </div>
@@ -563,13 +578,13 @@ export function AdminCoachSessions() {
       {sessionsQuery.isLoading ? (
         <StateCard
           icon={<Loader2 className="w-5 h-5 animate-spin text-[#0D7D6D]" />}
-          title="Loading coach sessions..."
-          description="Fetching the latest admin session records."
+          title={t("sessions.loading")}
+          description={t("adminSessions.loadingDescription")}
         />
       ) : sessionsQuery.error ? (
         <StateCard
           icon={<AlertCircle className="w-5 h-5 text-rose-600" />}
-          title="Unable to load coach sessions"
+          title={t("sessions.unableToLoad")}
           description={listErrorMessage}
           action={
             <Button
@@ -577,7 +592,7 @@ export function AdminCoachSessions() {
               onClick={() => void sessionsQuery.refetch()}
               className="rounded-xl bg-[#0D7D6D] hover:bg-[#0b6b5d] text-white"
             >
-              Try Again
+              {t("common.tryAgain")}
             </Button>
           }
         />
@@ -585,31 +600,31 @@ export function AdminCoachSessions() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatCard
-              title="Total Sessions"
+              title={t("sessions.totalSessions")}
               value={stats.total}
               icon={<CalendarDays className="w-6 h-6 text-blue-600" />}
               iconClassName="bg-blue-50"
             />
             <StatCard
-              title="Available"
+              title={t("common.available")}
               value={stats.available}
               icon={<CheckCircle className="w-6 h-6 text-emerald-600" />}
               iconClassName="bg-emerald-50"
             />
             <StatCard
-              title="Full"
+              title={t("common.full")}
               value={stats.full}
               icon={<Users className="w-6 h-6 text-amber-600" />}
               iconClassName="bg-amber-50"
             />
             <StatCard
-              title="Cancelled"
+              title={t("common.cancelled")}
               value={stats.cancelled}
               icon={<XCircle className="w-6 h-6 text-rose-600" />}
               iconClassName="bg-rose-50"
             />
             <StatCard
-              title="Total Bookings"
+              title={t("sessions.totalBookings")}
               value={stats.bookings}
               icon={<UserRound className="w-6 h-6 text-[#0D7D6D]" />}
               iconClassName="bg-[#E6F4F1]"
@@ -620,7 +635,7 @@ export function AdminCoachSessions() {
             <div className="flex items-center gap-2 mb-4">
               <Filter className="w-4 h-4 text-gray-400" />
               <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 text-sm">
-                Filters
+                {t("adminSessions.filters")}
               </h2>
             </div>
 
@@ -630,17 +645,17 @@ export function AdminCoachSessions() {
                 <Input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by coach name..."
+                  placeholder={t("adminSessions.searchPlaceholder")}
                   className="pl-11 h-11 rounded-xl border-gray-200 bg-gray-50"
                 />
               </div>
 
               <Select value={coachFilter} onValueChange={setCoachFilter}>
                 <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-gray-50">
-                  <SelectValue placeholder="Filter by coach" />
+                  <SelectValue placeholder={t("adminSessions.filterByCoach")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Coaches</SelectItem>
+                  <SelectItem value="all">{t("coaches.allCoaches")}</SelectItem>
                   {coachOptions.map((coach) => (
                     <SelectItem key={coach.value} value={coach.value}>
                       {coach.label}
@@ -654,13 +669,13 @@ export function AdminCoachSessions() {
                 onValueChange={(value) => setStatusFilter(value as StatusFilter)}
               >
                 <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-gray-50">
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder={t("subscriptions.filterStatus")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="full">Full</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="all">{t("common.allStatus")}</SelectItem>
+                  <SelectItem value="available">{t("common.available")}</SelectItem>
+                  <SelectItem value="full">{t("common.full")}</SelectItem>
+                  <SelectItem value="cancelled">{t("common.cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -669,13 +684,13 @@ export function AdminCoachSessions() {
                 onValueChange={(value) => setDateFilter(value as DateFilter)}
               >
                 <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-gray-50">
-                  <SelectValue placeholder="Filter by date" />
+                  <SelectValue placeholder={t("sessions.date")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="all">{t("adminSessions.allDates")}</SelectItem>
+                  <SelectItem value="today">{t("sessions.today")}</SelectItem>
+                  <SelectItem value="week">{t("adminSessions.thisWeek")}</SelectItem>
+                  <SelectItem value="upcoming">{t("sessions.upcomingSessions")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -686,7 +701,7 @@ export function AdminCoachSessions() {
                 onClick={clearFilters}
                 className="mt-4 text-sm text-[#0D7D6D] hover:underline font-medium"
               >
-                Clear filters
+                {t("adminSessions.clearFilters")}
               </button>
             ) : null}
           </div>
@@ -696,12 +711,14 @@ export function AdminCoachSessions() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <TableHeaderCell>Coach</TableHeaderCell>
-                    <TableHeaderCell>Date</TableHeaderCell>
-                    <TableHeaderCell>Time</TableHeaderCell>
-                    <TableHeaderCell>Capacity</TableHeaderCell>
-                    <TableHeaderCell>Status</TableHeaderCell>
-                    <TableHeaderCell className="text-center">Actions</TableHeaderCell>
+                    <TableHeaderCell>{t("coaches.coach")}</TableHeaderCell>
+                    <TableHeaderCell>{t("sessions.date")}</TableHeaderCell>
+                    <TableHeaderCell>{t("sessions.time")}</TableHeaderCell>
+                    <TableHeaderCell>{t("sessions.capacity")}</TableHeaderCell>
+                    <TableHeaderCell>{t("common.status")}</TableHeaderCell>
+                    <TableHeaderCell className="text-center">
+                      {t("common.actions")}
+                    </TableHeaderCell>
                   </tr>
                 </thead>
 
@@ -735,7 +752,7 @@ export function AdminCoachSessions() {
                                 {coachName}
                               </p>
                               <p className="text-xs text-gray-400 truncate">
-                                {coachEmail || "Coach"}
+                                {coachEmail || t("coaches.coach")}
                               </p>
                             </div>
                           </div>
@@ -766,7 +783,7 @@ export function AdminCoachSessions() {
                           <div className="min-w-36">
                             <div className="flex justify-between text-xs mb-1.5">
                               <span className="text-gray-500">
-                                {bookedCount}/{capacity} booked
+                                {bookedCount}/{capacity} {t("sessions.booked")}
                               </span>
                               <span className="font-semibold text-gray-700">
                                 {Math.round(percent)}%
@@ -793,13 +810,13 @@ export function AdminCoachSessions() {
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${meta.className}`}
                             >
                               <StatusIcon className="w-3.5 h-3.5" />
-                              {meta.label}
+                              {getSessionStatusLabel(displayStatus, t)}
                             </span>
 
                             {isRecurring(session.is_recurring) ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200">
                                 <Repeat2 className="w-3.5 h-3.5" />
-                                Recurring
+                                {t("sessions.recurring")}
                               </span>
                             ) : null}
                           </div>
@@ -811,7 +828,7 @@ export function AdminCoachSessions() {
                               type="button"
                               onClick={() => openDetails(session)}
                               className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors"
-                              title="View Details"
+                              title={t("aiRequests.viewDetails")}
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -829,7 +846,7 @@ export function AdminCoachSessions() {
                                 ) : (
                                   <CheckCircle className="w-4 h-4" />
                                 )}
-                                Restore
+                                {t("adminSessions.restore")}
                               </Button>
                             ) : (
                               <Button
@@ -840,7 +857,7 @@ export function AdminCoachSessions() {
                                 className="h-9 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
                               >
                                 <XCircle className="w-4 h-4" />
-                                Cancel
+                                {t("common.cancel")}
                               </Button>
                             )}
                           </div>
@@ -853,8 +870,8 @@ export function AdminCoachSessions() {
                     <tr>
                       <td colSpan={6} className="py-16 px-6">
                         <EmptyState
-                          title="No sessions found"
-                          description="Try adjusting the filters or search query."
+                          title={t("adminSessions.noSessions")}
+                          description={t("adminSessions.adjustFilters")}
                         />
                       </td>
                     </tr>
@@ -865,8 +882,9 @@ export function AdminCoachSessions() {
 
             <div className="border-t border-gray-200 px-6 py-4">
               <p className="text-sm text-gray-600">
-                Showing <strong>{filteredSessions.length}</strong> of{" "}
-                <strong>{sessions.length}</strong> sessions
+                {t("common.showing")} <strong>{filteredSessions.length}</strong>{" "}
+                {t("common.of")} <strong>{sessions.length}</strong>{" "}
+                {t("nav.coachSessions")}
               </p>
             </div>
           </div>
@@ -885,17 +903,17 @@ export function AdminCoachSessions() {
         <DialogContent className="w-[95vw] sm:max-w-[880px] rounded-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Session Details
+              {t("sessions.detailsTitle")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Review session information, coach details, and bookings.
+              {t("adminSessions.detailsDescription")}
             </DialogDescription>
           </DialogHeader>
 
           {detailsQuery.isFetching ? (
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Refreshing session details...
+              {t("adminSessions.refreshingDetails")}
             </div>
           ) : null}
 
@@ -909,7 +927,7 @@ export function AdminCoachSessions() {
             <SessionDetailsContent session={detailSession} />
           ) : (
             <div className="py-12 text-center text-gray-500">
-              Session details are not available.
+              {t("sessions.detailsUnavailable")}
             </div>
           )}
         </DialogContent>
@@ -925,10 +943,10 @@ export function AdminCoachSessions() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Cancel Session
+              {t("sessions.cancelSession")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              This marks the session as cancelled without deleting it.
+              {t("adminSessions.cancelDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -938,7 +956,8 @@ export function AdminCoachSessions() {
                 {getCoachName(sessionToCancel)}
               </p>
               <p className="mt-1">
-                {formatDate(sessionToCancel.session_date)} at{" "}
+                {formatDate(sessionToCancel.session_date)}{" "}
+                {t("common.at")}{" "}
                 {formatTime(sessionToCancel.start_time)} -{" "}
                 {formatTime(sessionToCancel.end_time)}
               </p>
@@ -953,7 +972,7 @@ export function AdminCoachSessions() {
               disabled={cancelMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Keep Session
+              {t("sessions.keepSession")}
             </Button>
 
             <Button
@@ -965,10 +984,10 @@ export function AdminCoachSessions() {
               {cancelMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Cancelling...
+                  {t("sessions.cancelling")}
                 </>
               ) : (
-                "Cancel Session"
+                t("sessions.cancelSession")
               )}
             </Button>
           </div>
@@ -1066,10 +1085,12 @@ function EmptyState({
 }
 
 function SessionDetailsContent({ session }: { session: CoachSession }) {
+  const { t } = useTranslation();
   const coachName = getCoachName(session);
   const coachEmail = getCoachEmail(session);
   const bookings = Array.isArray(session.bookings) ? session.bookings : [];
-  const meta = getStatusMeta(getSessionDisplayStatus(session));
+  const displayStatus = getSessionDisplayStatus(session);
+  const meta = getStatusMeta(displayStatus);
   const StatusIcon = meta.icon;
 
   return (
@@ -1079,29 +1100,31 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${meta.className}`}
         >
           <StatusIcon className="w-3.5 h-3.5" />
-          {meta.label}
+          {getSessionStatusLabel(displayStatus, t)}
         </span>
 
         {isRecurring(session.is_recurring) ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200">
             <Repeat2 className="w-3.5 h-3.5" />
-            Recurring
+            {t("sessions.recurring")}
           </span>
         ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <DetailTile label="Date" value={formatDate(session.session_date)} />
-        <DetailTile label="Day" value={formatDayOfWeek(session) || "-"} />
+        <DetailTile label={t("sessions.date")} value={formatDate(session.session_date)} />
+        <DetailTile label={t("sessions.day")} value={formatDayOfWeek(session) || "-"} />
         <DetailTile
-          label="Time"
+          label={t("sessions.time")}
           value={`${formatTime(session.start_time)} - ${formatTime(
             session.end_time
           )}`}
         />
         <DetailTile
-          label="Capacity"
-          value={`${getBookedCount(session)}/${getCapacity(session)} booked`}
+          label={t("sessions.capacity")}
+          value={`${getBookedCount(session)}/${getCapacity(session)} ${t(
+            "sessions.booked"
+          )}`}
         />
       </div>
 
@@ -1113,7 +1136,7 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
           <div className="min-w-0">
             <p className="font-semibold text-gray-900">{coachName}</p>
             <p className="text-sm text-gray-500 truncate">
-              {coachEmail || "No email available"}
+              {coachEmail || t("sessions.noEmailAvailable")}
             </p>
           </div>
         </div>
@@ -1122,10 +1145,10 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
       <div className="rounded-2xl border border-gray-100 overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 text-sm">
-            Bookings
+            {t("sessions.bookings")}
           </h3>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600">
-            {bookings.length} users
+            {bookings.length} {t("sessions.users")}
           </span>
         </div>
 
@@ -1134,9 +1157,9 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
             <table className="w-full">
               <thead className="bg-white border-b border-gray-100">
                 <tr>
-                  <TableHeaderCell>User</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Booked At</TableHeaderCell>
+                  <TableHeaderCell>{t("aiRequests.user")}</TableHeaderCell>
+                  <TableHeaderCell>{t("common.status")}</TableHeaderCell>
+                  <TableHeaderCell>{t("sessions.bookedAt")}</TableHeaderCell>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1150,7 +1173,7 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
                       <td className="py-3 px-6">
                         <p className="font-medium text-gray-900">{userName}</p>
                         <p className="text-xs text-gray-400">
-                          {userEmail || "No email available"}
+                          {userEmail || t("sessions.noEmailAvailable")}
                         </p>
                       </td>
                       <td className="py-3 px-6">
@@ -1173,7 +1196,7 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
           </div>
         ) : (
           <div className="py-10 text-center text-sm text-gray-500">
-            No bookings for this session.
+            {t("sessions.noBookings")}
           </div>
         )}
       </div>

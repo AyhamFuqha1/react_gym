@@ -47,6 +47,7 @@ import { useCreateNews } from "../../hooks/news/mutations/useCreateNews";
 import { useUpdateNews } from "../../hooks/news/mutations/useUpdateNews";
 import { useDeleteNews } from "../../hooks/news/mutations/useDeleteNews";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "../../i18n";
 
 const statusColors: Record<string, string> = {
   public: "bg-emerald-50 text-emerald-600 border-emerald-100",
@@ -62,6 +63,7 @@ const LOCAL_FILTER_PAGE_SIZE = 10;
 
 export function NewsManagement() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [isAddingNews, setIsAddingNews] = useState(false);
   const [submittingPublic, setSubmittingPublic] = useState(false);
@@ -143,14 +145,14 @@ export function NewsManagement() {
   const dashboardStats = useMemo(
     () => [
       {
-        label: "Published",
+        label: t("news.published"),
         value: String(stats.published),
         icon: Newspaper,
         color: "text-[#0D7D6D]",
         bg: "bg-[#E6F4F1]",
       },
       {
-        label: "Drafts",
+        label: t("news.drafts"),
         value: String(stats.drafts),
         icon: FileText,
         color: "text-blue-600",
@@ -164,7 +166,7 @@ export function NewsManagement() {
         bg: "bg-red-50",
       },
     ],
-    [stats]
+    [stats, t]
   );
 
   const fullyFilteredItems = useMemo(() => {
@@ -286,7 +288,7 @@ export function NewsManagement() {
 
   async function handleCreate(status: "public" | "draft") {
     if (!form.title.trim() || !form.content.trim()) {
-      setErrorMessage("Title and content are required.");
+      setErrorMessage(t("news.titleContentRequired"));
       return;
     }
 
@@ -328,7 +330,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to create news:", error);
-      setErrorMessage("Failed to create news.");
+      setErrorMessage(t("news.createFailed"));
     } finally {
       setSubmittingPublic(false);
       setSubmittingDraft(false);
@@ -363,8 +365,8 @@ export function NewsManagement() {
       console.error("Failed to delete news:", error);
       setErrorMessage(
         pendingDeletePermanent
-          ? "Failed to permanently delete news."
-          : "Failed to delete news."
+          ? t("news.deletePermanentFailed")
+          : t("news.deleteFailed")
       );
     } finally {
       setDeletingId(null);
@@ -388,7 +390,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to publish news:", error);
-      setErrorMessage("Failed to publish news.");
+      setErrorMessage(t("news.publishFailed"));
     } finally {
       setPublishingId(null);
     }
@@ -406,7 +408,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to restore news:", error);
-      setErrorMessage("Failed to restore news.");
+      setErrorMessage(t("news.restoreFailed"));
     } finally {
       setRestoringId(null);
     }
@@ -432,7 +434,7 @@ export function NewsManagement() {
             )?.data;
 
       if (!fullNews) {
-        setErrorMessage("Failed to load news for editing.");
+        setErrorMessage(t("news.loadEditFailed"));
         return;
       }
 
@@ -445,7 +447,7 @@ export function NewsManagement() {
       setIsEditingNews(true);
     } catch (error) {
       console.error("Failed to load news for edit:", error);
-      setErrorMessage("Failed to load news for editing.");
+      setErrorMessage(t("news.loadEditFailed"));
     }
   }
 
@@ -453,7 +455,7 @@ export function NewsManagement() {
     if (!editingId) return;
 
     if (!editForm.title.trim() || !editForm.content.trim()) {
-      setErrorMessage("Title and content are required.");
+      setErrorMessage(t("news.titleContentRequired"));
       return;
     }
 
@@ -475,7 +477,7 @@ export function NewsManagement() {
       await refreshCurrentData();
     } catch (error) {
       console.error("Failed to update news:", error);
-      setErrorMessage("Failed to update news.");
+      setErrorMessage(t("news.updateFailed"));
     } finally {
       setSavingEdit(false);
     }
@@ -533,10 +535,10 @@ export function NewsManagement() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            News & Offers
+            {t("news.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Create and manage news and special offers for members
+            {t("news.subtitle")}
           </p>
         </div>
 
@@ -552,17 +554,17 @@ export function NewsManagement() {
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md">
               <Plus size={16} className="mr-2" />
-              Add News
+              {t("news.addNews")}
             </Button>
           </DialogTrigger>
 
           <DialogContent className="sm:max-w-[560px] rounded-2xl">
             <DialogHeader>
               <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-                Create News
+                {t("news.createNews")}
               </DialogTitle>
               <DialogDescription>
-                Publish news or save it as a draft
+                {t("news.subtitle")}
               </DialogDescription>
             </DialogHeader>
 
@@ -574,7 +576,9 @@ export function NewsManagement() {
               ) : null}
 
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-sm">Title</Label>
+                <Label className="text-gray-600 text-sm">
+                  {t("news.titleLabel")}
+                </Label>
                 <Input
                   value={form.title}
                   onChange={(e) =>
@@ -586,7 +590,9 @@ export function NewsManagement() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-gray-600 text-sm">Full Content</Label>
+                <Label className="text-gray-600 text-sm">
+                  {t("news.contentLabel")}
+                </Label>
                 <Textarea
                   value={form.content}
                   onChange={(e) =>
@@ -635,10 +641,10 @@ export function NewsManagement() {
                   {submittingPublic ? (
                     <>
                       <Loader2 size={16} className="mr-2 animate-spin" />
-                      Publishing...
+                      {t("news.publishing")}
                     </>
                   ) : (
-                    "Publish Now"
+                    t("news.publish")
                   )}
                 </Button>
 
@@ -654,7 +660,7 @@ export function NewsManagement() {
                       Saving...
                     </>
                   ) : (
-                    "Save as Draft"
+                    t("news.saveDraft")
                   )}
                 </Button>
               </div>
@@ -695,14 +701,14 @@ export function NewsManagement() {
         <div className="px-6 py-5 border-b border-gray-50 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-              News List
+              {t("news.allNews")}
             </h3>
             <p className="text-xs text-gray-400 mt-1">
               {listMeta.total > 0 &&
               listMeta.from !== null &&
               listMeta.to !== null
                 ? `Showing ${listMeta.from}-${listMeta.to} of ${listMeta.total}`
-                : "No news available"}
+                : t("news.noNewsAvailable")}
             </p>
           </div>
 
@@ -710,7 +716,7 @@ export function NewsManagement() {
             <div className="relative min-w-[240px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search news..."
+                placeholder={t("news.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 h-10 rounded-xl border-gray-200 bg-white"
@@ -727,7 +733,7 @@ export function NewsManagement() {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                All
+                {t("news.all")}
               </button>
               <button
                 type="button"
@@ -738,7 +744,7 @@ export function NewsManagement() {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                Published
+                {t("news.published")}
               </button>
               <button
                 type="button"
@@ -749,7 +755,7 @@ export function NewsManagement() {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                Drafts
+                {t("news.drafts")}
               </button>
               <button
                 type="button"
@@ -789,11 +795,11 @@ export function NewsManagement() {
         {loading ? (
           <div className="p-8 flex items-center justify-center text-gray-500">
             <Loader2 className="animate-spin mr-2" size={18} />
-            Loading...
+            {t("common.loading")}
           </div>
         ) : visibleNewsItems.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-400">
-            No news items found.
+            {t("news.noNews")}
           </div>
         ) : (
           <>
@@ -871,7 +877,7 @@ export function NewsManagement() {
                     <div className="flex gap-2 flex-shrink-0">
                       <button
                         type="button"
-                        title="View"
+                        title={t("common.view")}
                         onClick={() => handleOpenNews(item)}
                         className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all"
                       >
@@ -881,7 +887,7 @@ export function NewsManagement() {
                       {item.status !== "deleted" && (
                         <button
                           type="button"
-                          title="Edit"
+                          title={t("common.edit")}
                           onClick={() => handleStartEdit(item)}
                           className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white flex items-center justify-center transition-all"
                         >
@@ -892,7 +898,7 @@ export function NewsManagement() {
                       {item.status === "draft" && (
                         <button
                           type="button"
-                          title="Publish"
+                          title={t("news.publish")}
                           onClick={() => handlePublish(item.id)}
                           disabled={publishingId === item.id}
                           className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all disabled:opacity-60"
@@ -908,7 +914,7 @@ export function NewsManagement() {
                       {item.status === "deleted" && (
                         <button
                           type="button"
-                          title="Restore"
+                          title={t("news.restore")}
                           onClick={() => handleRestore(item.id)}
                           disabled={restoringId === item.id}
                           className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white flex items-center justify-center transition-all disabled:opacity-60"
@@ -925,8 +931,8 @@ export function NewsManagement() {
                         type="button"
                         title={
                           item.status === "deleted"
-                            ? "Delete Permanently"
-                            : "Delete"
+                            ? t("news.deletePermanently")
+                            : t("common.delete")
                         }
                         onClick={() =>
                           handleDelete(item.id, item.status === "deleted")
@@ -959,7 +965,7 @@ export function NewsManagement() {
                   disabled={!listMeta.hasPrev || loading}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4 rtl-flip" />
                 </button>
 
                 <div className="flex gap-1">
@@ -997,7 +1003,7 @@ export function NewsManagement() {
                   disabled={!listMeta.hasNext || loading}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 rtl-flip" />
                 </button>
               </div>
             </div>
@@ -1018,12 +1024,14 @@ export function NewsManagement() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              {pendingDeletePermanent ? "Delete Permanently" : "Move to Trash"}
+              {pendingDeletePermanent
+                ? t("news.deletePermanently")
+                : t("news.moveToTrash")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
               {pendingDeletePermanent
-                ? "Are you sure you want to permanently delete this news item? This action cannot be undone."
-                : "Are you sure you want to move this news item to trash?"}
+                ? t("news.deletePermanentConfirm")
+                : t("news.moveToTrashConfirm")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1036,8 +1044,8 @@ export function NewsManagement() {
           <div className="mt-2 rounded-2xl border border-red-100 bg-red-50 p-4">
             <p className="text-sm text-red-600">
               {pendingDeletePermanent
-                ? "This will permanently remove the news item from the system."
-                : "You can restore this item later from Trash."}
+                ? t("news.removePermanentWarning")
+                : t("news.restoreLater")}
             </p>
           </div>
 
@@ -1052,7 +1060,7 @@ export function NewsManagement() {
               }}
               className="flex-1 rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -1064,12 +1072,12 @@ export function NewsManagement() {
               {deletingId !== null ? (
                 <>
                   <Loader2 size={14} className="mr-2 animate-spin" />
-                  Deleting...
+                  {t("common.deleting")}
                 </>
               ) : pendingDeletePermanent ? (
-                "Delete Permanently"
+                t("news.deletePermanently")
               ) : (
-                "Move to Trash"
+                t("news.moveToTrash")
               )}
             </Button>
           </div>
@@ -1088,9 +1096,9 @@ export function NewsManagement() {
         <DialogContent className="sm:max-w-[640px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              {selectedNews?.title || "News Details"}
+              {selectedNews?.title || t("news.details")}
             </DialogTitle>
-            <DialogDescription>Full news details</DialogDescription>
+            <DialogDescription>{t("news.details")}</DialogDescription>
           </DialogHeader>
 
           {errorMessage ? (
@@ -1102,7 +1110,7 @@ export function NewsManagement() {
           {viewLoading ? (
             <div className="py-10 flex items-center justify-center text-gray-500">
               <Loader2 className="animate-spin mr-2" size={18} />
-              Loading news details...
+              {t("news.loadingDetails")}
             </div>
           ) : selectedNews ? (
             <div className="space-y-4">
@@ -1126,12 +1134,12 @@ export function NewsManagement() {
                     {publishingId === selectedNews.id ? (
                       <>
                         <Loader2 size={14} className="mr-2 animate-spin" />
-                        Publishing...
+                        {t("news.publishing")}
                       </>
                     ) : (
                       <>
                         <Send size={14} className="mr-2" />
-                        Publish
+                        {t("news.publish")}
                       </>
                     )}
                   </Button>
@@ -1147,12 +1155,12 @@ export function NewsManagement() {
                     {restoringId === selectedNews.id ? (
                       <>
                         <Loader2 size={14} className="mr-2 animate-spin" />
-                        Restoring...
+                        {t("news.restoring")}
                       </>
                     ) : (
                       <>
                         <RotateCcw size={14} className="mr-2" />
-                        Restore
+                        {t("news.restore")}
                       </>
                     )}
                   </Button>
@@ -1167,7 +1175,7 @@ export function NewsManagement() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div className="rounded-xl bg-white border border-gray-100 p-3">
-                    <p className="text-gray-400 mb-1">Published At</p>
+                    <p className="text-gray-400 mb-1">{t("news.publishedAt")}</p>
                     <p className="font-medium text-gray-900">
                       {formatDisplayDateTime(selectedNews.published_at) || "-"}
                     </p>
@@ -1176,7 +1184,8 @@ export function NewsManagement() {
                   <div className="rounded-xl bg-white border border-gray-100 p-3">
                     <p className="text-gray-400 mb-1">Expiry Date</p>
                     <p className="font-medium text-gray-900">
-                      {formatDisplayDateTime(selectedNews.expires_at) || "No expiry"}
+                      {formatDisplayDateTime(selectedNews.expires_at) ||
+                        t("news.noExpiry")}
                     </p>
                   </div>
 
@@ -1189,7 +1198,9 @@ export function NewsManagement() {
                 </div>
 
                 <div className="rounded-xl bg-white border border-gray-100 p-4">
-                  <p className="text-sm text-gray-400 mb-2">Content</p>
+                  <p className="text-sm text-gray-400 mb-2">
+                    {t("news.contentLabel")}
+                  </p>
                   <p className="text-sm text-gray-700 leading-7 whitespace-pre-wrap break-words">
                     {selectedNews.content}
                   </p>
@@ -1198,7 +1209,7 @@ export function NewsManagement() {
             </div>
           ) : (
             <div className="py-10 text-center text-sm text-gray-400">
-              News details are not available.
+              {t("news.detailsUnavailable")}
             </div>
           )}
         </DialogContent>
@@ -1216,10 +1227,10 @@ export function NewsManagement() {
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-              Edit News
+              {t("news.editNews")}
             </DialogTitle>
             <DialogDescription>
-              Update the selected news item
+              {t("news.updateSelected")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1231,7 +1242,9 @@ export function NewsManagement() {
             ) : null}
 
             <div className="space-y-1.5">
-              <Label className="text-gray-600 text-sm">Title</Label>
+              <Label className="text-gray-600 text-sm">
+                {t("news.titleLabel")}
+              </Label>
               <Input
                 value={editForm.title}
                 onChange={(e) =>
@@ -1243,7 +1256,9 @@ export function NewsManagement() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-gray-600 text-sm">Full Content</Label>
+              <Label className="text-gray-600 text-sm">
+                {t("news.contentLabel")}
+              </Label>
               <Textarea
                 value={editForm.content}
                 onChange={(e) =>
@@ -1280,7 +1295,7 @@ export function NewsManagement() {
                 }}
                 className="flex-1 rounded-xl border-gray-200"
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
 
               <Button

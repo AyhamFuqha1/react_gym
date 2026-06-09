@@ -48,6 +48,7 @@ import { useInjuryById } from "../../hooks/injuries/queries/useInjuryById";
 import { useCreateInjury } from "../../hooks/injuries/mutations/useCreateInjury";
 import { useUpdateInjury } from "../../hooks/injuries/mutations/useUpdateInjury";
 import { useDeleteInjury } from "../../hooks/injuries/mutations/useDeleteInjury";
+import { useTranslation } from "../../i18n";
 
 type StatusFilter = "all" | InjuryStatus;
 type SeverityFilter = "all" | InjurySeverity;
@@ -104,6 +105,7 @@ function formatLabel(value: unknown, fallback = "Unknown") {
 }
 
 export function InjuryPrevention() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -233,7 +235,7 @@ export function InjuryPrevention() {
 
   async function handleCreateInjury() {
     if (!createForm.user_id.trim() || !createForm.injury_type.trim()) {
-      setCreateError("User ID and injury type are required.");
+      setCreateError(t("injuries.requiredError"));
       return;
     }
 
@@ -253,7 +255,7 @@ export function InjuryPrevention() {
       setPage(1);
     } catch (error) {
       console.error("Failed to create injury:", error);
-      setCreateError("Failed to create injury.");
+      setCreateError(t("injuries.createFailed"));
     }
   }
 
@@ -267,7 +269,7 @@ export function InjuryPrevention() {
     if (!selectedId) return;
 
     if (!form.user_id.trim() || !form.injury_type.trim()) {
-      setEditError("User ID and injury type are required.");
+      setEditError(t("injuries.requiredError"));
       return;
     }
 
@@ -289,7 +291,7 @@ export function InjuryPrevention() {
       setSelectedId(null);
     } catch (error) {
       console.error("Failed to update injury:", error);
-      setEditError("Failed to update injury.");
+      setEditError(t("injuries.updateFailed"));
     }
   }
 
@@ -315,7 +317,7 @@ export function InjuryPrevention() {
       setPendingDeleteId(null);
     } catch (error) {
       console.error("Failed to delete injury:", error);
-      setDeleteError("Failed to delete injury.");
+      setDeleteError(t("injuries.deleteFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -336,10 +338,10 @@ export function InjuryPrevention() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Injury & Risk Prevention
+            {t("injuries.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Monitor member health conditions from the injury dashboard.
+            {t("injuries.subtitle")}
           </p>
         </div>
 
@@ -352,7 +354,7 @@ export function InjuryPrevention() {
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0"
         >
           <Plus size={16} className="mr-2" />
-          Add Injury
+          {t("injuries.addInjury")}
         </Button>
       </div>
 
@@ -363,10 +365,11 @@ export function InjuryPrevention() {
           </div>
 
           <div>
-            <p className="font-semibold text-gray-800 mb-1">Attention Required</p>
+            <p className="font-semibold text-gray-800 mb-1">
+              {t("injuries.attentionRequired")}
+            </p>
             <p className="text-sm text-gray-500 leading-relaxed">
-              {attentionCount} active case{attentionCount === 1 ? "" : "s"} on
-              this page currently need safe exercise monitoring.
+              {attentionCount} {t("injuries.attentionSuffix")}
             </p>
           </div>
         </div>
@@ -375,28 +378,28 @@ export function InjuryPrevention() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
-            label: "Total Cases",
+            label: t("injuries.totalCases"),
             value: String(stats.totalCases),
             icon: UserRound,
             iconBg: "bg-[#E6F4F1]",
             iconColor: "text-[#0D7D6D]",
           },
           {
-            label: "Active Cases",
+            label: t("injuries.activeCases"),
             value: String(stats.activeCases),
             icon: ShieldAlert,
             iconBg: "bg-red-50",
             iconColor: "text-red-600",
           },
           {
-            label: "Recovered Cases",
+            label: t("injuries.recoveredCases"),
             value: String(stats.recoveredCases),
             icon: ShieldCheck,
             iconBg: "bg-gray-100",
             iconColor: "text-gray-600",
           },
           {
-            label: "Severe Cases",
+            label: t("injuries.severeCases"),
             value: String(stats.severeSeverityCases),
             icon: AlertTriangle,
             iconBg: "bg-orange-50",
@@ -429,14 +432,16 @@ export function InjuryPrevention() {
         <div className="px-6 py-5 border-b border-gray-50 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-              Member Health Conditions
+              {t("injuries.memberHealthConditions")}
             </h3>
             <p className="text-xs text-gray-400 mt-1">
               {pagination.total > 0 &&
               pagination.from !== null &&
               pagination.to !== null
-                ? `Showing ${pagination.from}-${pagination.to} of ${pagination.total}`
-                : "No injury cases available"}
+                ? `${t("common.showing")} ${pagination.from}-${pagination.to} ${t(
+                    "common.of"
+                  )} ${pagination.total}`
+                : t("injuries.noCasesAvailable")}
             </p>
           </div>
 
@@ -447,12 +452,12 @@ export function InjuryPrevention() {
             >
               <SelectTrigger className="w-40 rounded-xl border-gray-200 bg-white">
                 <Filter size={14} className="mr-1.5 text-gray-400" />
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("sessions.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="recovered">Recovered</SelectItem>
+                <SelectItem value="all">{t("common.allStatus")}</SelectItem>
+                <SelectItem value="active">{t("common.active")}</SelectItem>
+                <SelectItem value="recovered">{t("common.recovered")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -464,13 +469,13 @@ export function InjuryPrevention() {
             >
               <SelectTrigger className="w-40 rounded-xl border-gray-200 bg-white">
                 <Filter size={14} className="mr-1.5 text-gray-400" />
-                <SelectValue placeholder="Severity" />
+                <SelectValue placeholder={t("injuries.severity")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Severity</SelectItem>
-                <SelectItem value="mild">Mild</SelectItem>
-                <SelectItem value="moderate">Moderate</SelectItem>
-                <SelectItem value="severe">Severe</SelectItem>
+                <SelectItem value="all">{t("injuries.allSeverity")}</SelectItem>
+                <SelectItem value="mild">{t("injuries.mild")}</SelectItem>
+                <SelectItem value="moderate">{t("injuries.moderate")}</SelectItem>
+                <SelectItem value="severe">{t("injuries.severe")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -479,11 +484,11 @@ export function InjuryPrevention() {
         {loading ? (
           <div className="p-8 flex items-center justify-center text-gray-500">
             <Loader2 className="animate-spin mr-2" size={18} />
-            Loading...
+            {t("common.loading")}
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-400">
-            No injury cases found.
+            {t("injuries.noCasesFound")}
           </div>
         ) : (
           <>
@@ -493,6 +498,12 @@ export function InjuryPrevention() {
                 const status = normalizeStatus(item.status);
                 const severityStyle = severityStyles[severity];
                 const statusStyle = statusStyles[status];
+                const severityLabel =
+                  severity === "mild"
+                    ? t("injuries.mild")
+                    : severity === "moderate"
+                      ? t("injuries.moderate")
+                      : t("injuries.severe");
                 const restrictions = getSafeArray(item.exercise_restrictions);
                 const alternatives = getSafeArray(item.ai_alternatives);
                 const aiRequest = item.modification_request ?? null;
@@ -507,11 +518,11 @@ export function InjuryPrevention() {
                 const alternativeItems =
                   alternatives.length > 0 ? alternatives : aiRecommendations;
                 const restrictionMessage = aiRequest
-                  ? "AI request created. Waiting for detailed exercise restrictions."
-                  : "No restrictions listed.";
+                  ? t("injuries.aiRestrictionsPending")
+                  : t("injuries.noRestrictions");
                 const alternativeMessage = aiRequest
-                  ? "AI request created. Waiting for coach review or alternatives."
-                  : "No alternatives available.";
+                  ? t("injuries.aiAlternativesPending")
+                  : t("injuries.noAlternatives");
                 const showAiChangesSummary =
                   aiRequest !== null &&
                   restrictions.length > 0 &&
@@ -546,13 +557,15 @@ export function InjuryPrevention() {
                         <span
                           className={`text-xs font-semibold px-2.5 py-1 rounded-full ${severityStyle.chip} ${severityStyle.chipText}`}
                         >
-                          {severity.charAt(0).toUpperCase() + severity.slice(1)} Severity
+                          {severityLabel} {t("injuries.severity")}
                         </span>
 
                         <span
                           className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${statusStyle.badge}`}
                         >
-                          {statusStyle.label}
+                          {status === "active"
+                            ? t("common.active")
+                            : t("common.recovered")}
                         </span>
                       </div>
                     </div>
@@ -571,7 +584,7 @@ export function InjuryPrevention() {
                         <div className="flex items-center gap-1.5 mb-3">
                           <ShieldCheck size={14} className="text-blue-600" />
                           <p className="text-xs font-700 text-blue-700 uppercase tracking-wider">
-                            AI Request Context
+                            {t("injuries.aiRequestContext")}
                           </p>
                         </div>
 
@@ -579,7 +592,7 @@ export function InjuryPrevention() {
                           {showAiChangesSummary ? (
                             <div>
                               <p className="text-xs font-semibold text-gray-700 mb-2">
-                                Changes Summary
+                                {t("injuries.changesSummary")}
                               </p>
                               <ul className="space-y-1.5">
                                 {aiChangesSummary.map((change, index) => (
@@ -598,7 +611,7 @@ export function InjuryPrevention() {
                           {showAiRecommendations ? (
                             <div>
                               <p className="text-xs font-semibold text-gray-700 mb-2">
-                                Recommendations
+                                {t("injuries.recommendations")}
                               </p>
                               <ul className="space-y-1.5">
                                 {aiRecommendations.map((recommendation, index) => (
@@ -622,7 +635,7 @@ export function InjuryPrevention() {
                         <div className="flex items-center gap-1.5 mb-2">
                           <XCircle size={14} className="text-red-600" />
                           <p className="text-xs font-700 text-red-700 uppercase tracking-wider">
-                            Exercise Restrictions
+                            {t("injuries.exerciseRestrictions")}
                           </p>
                         </div>
 
@@ -649,7 +662,7 @@ export function InjuryPrevention() {
                         <div className="flex items-center gap-1.5 mb-2">
                           <CheckCircle size={14} className="text-emerald-600" />
                           <p className="text-xs font-700 text-emerald-700 uppercase tracking-wider">
-                            AI Alternatives
+                            {t("injuries.aiAlternatives")}
                           </p>
                         </div>
 
@@ -681,7 +694,7 @@ export function InjuryPrevention() {
                         className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 text-xs hover:shadow-md"
                       >
                         <Pencil size={14} className="mr-1.5" />
-                        Update Injury
+                        {t("injuries.updateInjury")}
                       </Button>
 
                       <Button
@@ -699,7 +712,7 @@ export function InjuryPrevention() {
                         ) : (
                           <Trash2 size={14} className="mr-1.5" />
                         )}
-                        Delete
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
@@ -709,9 +722,10 @@ export function InjuryPrevention() {
 
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Showing <strong>{pagination.from ?? 0}</strong> to{" "}
+                {t("common.showing")} <strong>{pagination.from ?? 0}</strong>{" "}
+                {t("common.to")}{" "}
                 <strong>{pagination.to ?? 0}</strong> of{" "}
-                <strong>{pagination.total}</strong> injury cases
+                <strong>{pagination.total}</strong> {t("injuries.totalCases")}
               </p>
 
               <div className="flex items-center gap-2">
@@ -720,7 +734,7 @@ export function InjuryPrevention() {
                   disabled={!pagination.prev_page_url || loading || isFetching}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4 rtl-flip" />
                 </button>
 
                 <div className="flex gap-1">
@@ -750,7 +764,7 @@ export function InjuryPrevention() {
                   disabled={!pagination.next_page_url || loading || isFetching}
                   className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-50"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 rtl-flip" />
                 </button>
               </div>
             </div>
@@ -767,15 +781,15 @@ export function InjuryPrevention() {
       >
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Create Injury Record</DialogTitle>
+            <DialogTitle>{t("injuries.createTitle")}</DialogTitle>
             <DialogDescription>
-              Add a new member injury record using the injury API.
+              {t("injuries.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label>User ID</Label>
+              <Label>{t("injuries.userId")}</Label>
               <Input
                 value={createForm.user_id}
                 onChange={(e) => {
@@ -785,12 +799,12 @@ export function InjuryPrevention() {
                   }));
                   if (createError) setCreateError("");
                 }}
-                placeholder="User ID"
+                placeholder={t("injuries.userId")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Injury Type</Label>
+              <Label>{t("injuries.injuryType")}</Label>
               <Input
                 value={createForm.injury_type}
                 onChange={(e) => {
@@ -800,13 +814,13 @@ export function InjuryPrevention() {
                   }));
                   if (createError) setCreateError("");
                 }}
-                placeholder="Knee pain"
+                placeholder={t("injuries.injuryTypePlaceholder")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Severity</Label>
+                <Label>{t("injuries.severity")}</Label>
                 <Select
                   value={createForm.severity}
                   onValueChange={(value) =>
@@ -820,15 +834,15 @@ export function InjuryPrevention() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mild">Mild</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="severe">Severe</SelectItem>
+                    <SelectItem value="mild">{t("injuries.mild")}</SelectItem>
+                    <SelectItem value="moderate">{t("injuries.moderate")}</SelectItem>
+                    <SelectItem value="severe">{t("injuries.severe")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label>{t("sessions.status")}</Label>
                 <Select
                   value={createForm.status}
                   onValueChange={(value) =>
@@ -842,15 +856,15 @@ export function InjuryPrevention() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="recovered">Recovered</SelectItem>
+                    <SelectItem value="active">{t("common.active")}</SelectItem>
+                    <SelectItem value="recovered">{t("common.recovered")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t("injuries.notes")}</Label>
               <Textarea
                 value={createForm.notes}
                 onChange={(e) => {
@@ -860,7 +874,7 @@ export function InjuryPrevention() {
                   }));
                   if (createError) setCreateError("");
                 }}
-                placeholder="Avoid deep squats"
+                placeholder={t("injuries.notesPlaceholder")}
                 rows={5}
                 className="rounded-xl resize-none"
               />
@@ -882,10 +896,10 @@ export function InjuryPrevention() {
                 {createInjuryMutation.isPending ? (
                   <>
                     <Loader2 size={16} className="mr-2 animate-spin" />
-                    Creating...
+                    {t("common.creating")}
                   </>
                 ) : (
-                  "Create Injury"
+                  t("injuries.createInjury")
                 )}
               </Button>
 
@@ -899,7 +913,7 @@ export function InjuryPrevention() {
                 disabled={createInjuryMutation.isPending}
                 className="flex-1 rounded-xl"
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
@@ -918,31 +932,31 @@ export function InjuryPrevention() {
       >
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Injury Record</DialogTitle>
+            <DialogTitle>{t("injuries.editTitle")}</DialogTitle>
             <DialogDescription>
-              Update injury type, severity, status, and notes using the injury API.
+              {t("injuries.editDescription")}
             </DialogDescription>
           </DialogHeader>
 
           {loadingDetails ? (
             <div className="py-10 flex items-center justify-center text-gray-500">
               <Loader2 size={18} className="mr-2 animate-spin" />
-              Loading details...
+              {t("injuries.loadingDetails")}
             </div>
           ) : (
             <div className="space-y-4 mt-2">
               <div className="space-y-1.5">
-                <Label>User ID</Label>
+                <Label>{t("injuries.userId")}</Label>
                 <Input
                   value={form.user_id}
-                  placeholder="User ID"
+                  placeholder={t("injuries.userId")}
                   readOnly
                   disabled
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Injury Type</Label>
+                <Label>{t("injuries.injuryType")}</Label>
                 <Input
                   value={form.injury_type}
                   onChange={(e) => {
@@ -952,13 +966,13 @@ export function InjuryPrevention() {
                     }));
                     if (editError) setEditError("");
                   }}
-                  placeholder="Knee pain"
+                  placeholder={t("injuries.injuryTypePlaceholder")}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Severity</Label>
+                  <Label>{t("injuries.severity")}</Label>
                   <Select
                     value={form.severity}
                     onValueChange={(value) =>
@@ -972,15 +986,15 @@ export function InjuryPrevention() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mild">Mild</SelectItem>
-                      <SelectItem value="moderate">Moderate</SelectItem>
-                      <SelectItem value="severe">Severe</SelectItem>
+                      <SelectItem value="mild">{t("injuries.mild")}</SelectItem>
+                      <SelectItem value="moderate">{t("injuries.moderate")}</SelectItem>
+                      <SelectItem value="severe">{t("injuries.severe")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Status</Label>
+                  <Label>{t("sessions.status")}</Label>
                   <Select
                     value={form.status}
                     onValueChange={(value) =>
@@ -994,22 +1008,22 @@ export function InjuryPrevention() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="recovered">Recovered</SelectItem>
+                      <SelectItem value="active">{t("common.active")}</SelectItem>
+                      <SelectItem value="recovered">{t("common.recovered")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label>Notes</Label>
+                <Label>{t("injuries.notes")}</Label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, notes: e.target.value }));
                     if (editError) setEditError("");
                   }}
-                  placeholder="Avoid deep squats"
+                  placeholder={t("injuries.notesPlaceholder")}
                   rows={5}
                   className="rounded-xl resize-none"
                 />
@@ -1034,7 +1048,7 @@ export function InjuryPrevention() {
                       Saving...
                     </>
                   ) : (
-                    "Save Changes"
+                    t("aiRequests.saveChanges")
                   )}
                 </Button>
 
@@ -1045,7 +1059,7 @@ export function InjuryPrevention() {
                   disabled={updateInjuryMutation.isPending}
                   className="flex-1 rounded-xl"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </div>
             </div>
@@ -1067,10 +1081,10 @@ export function InjuryPrevention() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-gray-900">
-              Delete Injury Record
+              {t("injuries.deleteTitle")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Are you sure you want to delete this injury record?
+              {t("injuries.deleteDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1092,7 +1106,7 @@ export function InjuryPrevention() {
               disabled={deleteInjuryMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
 
             <Button
@@ -1107,7 +1121,7 @@ export function InjuryPrevention() {
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                t("common.delete")
               )}
             </Button>
           </div>

@@ -12,7 +12,6 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -40,11 +39,13 @@ import {
   toInputValue,
   type FoodFormState,
 } from "../../utils/foods";
+import { useTranslation } from "../../i18n";
 
 export function NutritionFoods() {
   const navigate = useNavigate();
   const location = useLocation();
   const { categoryId } = useParams();
+  const { t } = useTranslation();
 
   const dashboardBase = location.pathname.startsWith("/dashboard/coach")
     ? "/dashboard/coach"
@@ -150,11 +151,11 @@ export function NutritionFoods() {
       !form.fat.trim() ||
       !form.serving_size.trim()
     ) {
-      return "All required fields must be filled.";
+      return t("nutritionFoods.requiredFields");
     }
 
     if (!numericCategoryId || Number.isNaN(numericCategoryId)) {
-      return "Invalid nutrition category.";
+      return t("nutritionFoods.invalidCategory");
     }
 
     return "";
@@ -228,8 +229,8 @@ export function NutritionFoods() {
             onClick={() => navigate(`${dashboardBase}/nutrition`)}
             className="rounded-xl"
           >
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back
+            <ArrowLeft className="mr-2 w-4 h-4 rtl-flip" />
+            {t("memberDetails.backToMembers")}
           </Button>
 
           <div>
@@ -245,7 +246,7 @@ export function NutritionFoods() {
           className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white border-0 hover:shadow-md rounded-xl h-11 px-5"
         >
           <Plus className="mr-2" size={18} />
-          Add Food
+          {t("nutritionFoods.addFood")}
         </Button>
       </div>
 
@@ -253,7 +254,9 @@ export function NutritionFoods() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-2">Foods In Category</p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t("nutritionLibrary.foods")}
+              </p>
               <p className="text-2xl font-bold text-gray-900">{totalFoods}</p>
             </div>
             <div
@@ -267,7 +270,9 @@ export function NutritionFoods() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-2">Total Calories</p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t("nutritionFoods.calories")}
+              </p>
               <p className="text-2xl font-bold text-gray-900">{totalCalories}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
@@ -279,7 +284,9 @@ export function NutritionFoods() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm mb-2">Category ID</p>
+              <p className="text-gray-400 text-sm mb-2">
+                {t("nutritionFoods.categoryId")}
+              </p>
               <p className="text-2xl font-bold text-gray-900">
                 {categoryId || "-"}
               </p>
@@ -299,7 +306,7 @@ export function NutritionFoods() {
               size={18}
             />
             <Input
-              placeholder="Search foods by name..."
+              placeholder={t("nutritionFoods.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 rounded-xl border-gray-200 bg-gray-50 h-11"
@@ -308,10 +315,10 @@ export function NutritionFoods() {
 
           <Select value={calorieFilter} onValueChange={setCalorieFilter}>
             <SelectTrigger className="w-full lg:w-[220px] rounded-xl border-gray-200 bg-gray-50 h-11">
-              <SelectValue placeholder="Calories" />
+              <SelectValue placeholder={t("nutritionFoods.calories")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Calories</SelectItem>
+              <SelectItem value="all">{t("nutritionFoods.calories")}</SelectItem>
               <SelectItem value="low">Low (&lt; 100)</SelectItem>
               <SelectItem value="medium">Medium (100 - 299)</SelectItem>
               <SelectItem value="high">High (300+)</SelectItem>
@@ -330,7 +337,7 @@ export function NutritionFoods() {
         </div>
       ) : categoryFoods.length === 0 ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm">
-          No foods found in this category.
+          {t("nutritionFoods.noFoods")}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -363,27 +370,35 @@ export function NutritionFoods() {
               </h3>
 
               <p className="text-gray-500 text-sm mb-4">
-                Serving Size: {food.serving_size || "N/A"}
+                {t("nutritionFoods.servingSize")}: {food.serving_size || "N/A"}
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Calories</p>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {t("nutritionFoods.calories")}
+                  </p>
                   <p className="font-semibold text-gray-900">{food.calories}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Protein</p>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {t("nutritionFoods.protein")}
+                  </p>
                   <p className="font-semibold text-gray-900">{food.protein}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Carbs</p>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {t("nutritionFoods.carbs")}
+                  </p>
                   <p className="font-semibold text-gray-900">{food.carbs}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs text-gray-400 mb-1">Fat</p>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {t("nutritionFoods.fat")}
+                  </p>
                   <p className="font-semibold text-gray-900">{food.fat}</p>
                 </div>
               </div>
@@ -395,7 +410,7 @@ export function NutritionFoods() {
                   className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl"
                 >
                   <Pencil className="mr-2 h-4 w-4" />
-                  Update
+                  {t("common.update")}
                 </Button>
 
                 <Button
@@ -404,7 +419,7 @@ export function NutritionFoods() {
                   className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {t("common.delete")}
                 </Button>
               </div>
             </div>
@@ -424,12 +439,12 @@ export function NutritionFoods() {
       >
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Create Food</DialogTitle>
+            <DialogTitle>{t("nutritionFoods.addFood")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label>Food Name</Label>
+              <Label>{t("nutritionFoods.foodName")}</Label>
               <Input
                 value={createForm.name}
                 onChange={(e) =>
@@ -441,7 +456,7 @@ export function NutritionFoods() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Calories</Label>
+                <Label>{t("nutritionFoods.calories")}</Label>
                 <Input
                   type="number"
                   value={createForm.calories}
@@ -456,7 +471,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Serving Size</Label>
+                <Label>{t("nutritionFoods.servingSize")}</Label>
                 <Input
                   value={createForm.serving_size}
                   onChange={(e) =>
@@ -472,7 +487,7 @@ export function NutritionFoods() {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label>Protein</Label>
+                <Label>{t("nutritionFoods.protein")}</Label>
                 <Input
                   type="number"
                   value={createForm.protein}
@@ -487,7 +502,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Carbs</Label>
+                <Label>{t("nutritionFoods.carbs")}</Label>
                 <Input
                   type="number"
                   value={createForm.carbs}
@@ -502,7 +517,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Fat</Label>
+                <Label>{t("nutritionFoods.fat")}</Label>
                 <Input
                   type="number"
                   value={createForm.fat}
@@ -518,7 +533,7 @@ export function NutritionFoods() {
             </div>
 
             <div>
-              <Label>Badge (UI only)</Label>
+              <Label>{t("nutritionFoods.badge")}</Label>
               <Select
                 value={createForm.badge}
                 onValueChange={(value) =>
@@ -539,7 +554,7 @@ export function NutritionFoods() {
             </div>
 
             <div>
-              <Label>Image URL</Label>
+              <Label>{t("nutritionFoods.imageUrl")}</Label>
               <Input
                 value={createForm.image}
                 onChange={(e) =>
@@ -561,7 +576,7 @@ export function NutritionFoods() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
-              {isSubmitting ? "Creating..." : "Create Food"}
+              {isSubmitting ? t("members.creating") : t("nutritionFoods.addFood")}
             </Button>
           </div>
         </DialogContent>
@@ -579,12 +594,12 @@ export function NutritionFoods() {
       >
         <DialogContent className="sm:max-w-lg rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Update Food</DialogTitle>
+            <DialogTitle>{t("common.update")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label>Food Name</Label>
+              <Label>{t("nutritionFoods.foodName")}</Label>
               <Input
                 value={editForm.name}
                 onChange={(e) =>
@@ -596,7 +611,7 @@ export function NutritionFoods() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Calories</Label>
+                <Label>{t("nutritionFoods.calories")}</Label>
                 <Input
                   type="number"
                   value={editForm.calories}
@@ -611,7 +626,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Serving Size</Label>
+                <Label>{t("nutritionFoods.servingSize")}</Label>
                 <Input
                   value={editForm.serving_size}
                   onChange={(e) =>
@@ -627,7 +642,7 @@ export function NutritionFoods() {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label>Protein</Label>
+                <Label>{t("nutritionFoods.protein")}</Label>
                 <Input
                   type="number"
                   value={editForm.protein}
@@ -642,7 +657,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Carbs</Label>
+                <Label>{t("nutritionFoods.carbs")}</Label>
                 <Input
                   type="number"
                   value={editForm.carbs}
@@ -657,7 +672,7 @@ export function NutritionFoods() {
               </div>
 
               <div>
-                <Label>Fat</Label>
+                <Label>{t("nutritionFoods.fat")}</Label>
                 <Input
                   type="number"
                   value={editForm.fat}
@@ -673,7 +688,7 @@ export function NutritionFoods() {
             </div>
 
             <div>
-              <Label>Badge (UI only)</Label>
+              <Label>{t("nutritionFoods.badge")}</Label>
               <Select
                 value={editForm.badge}
                 onValueChange={(value) =>
@@ -694,7 +709,7 @@ export function NutritionFoods() {
             </div>
 
             <div>
-              <Label>Image URL</Label>
+              <Label>{t("nutritionFoods.imageUrl")}</Label>
               <Input
                 value={editForm.image}
                 onChange={(e) =>
@@ -716,7 +731,7 @@ export function NutritionFoods() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white"
             >
-              {isSubmitting ? "Updating..." : "Update Food"}
+              {isSubmitting ? t("common.loading") : t("common.update")}
             </Button>
           </div>
         </DialogContent>
@@ -734,12 +749,12 @@ export function NutritionFoods() {
       >
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Delete Food</DialogTitle>
+            <DialogTitle>{t("common.delete")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <p className="text-sm text-gray-500">
-              Are you sure you want to delete{" "}
+              {t("nutritionFoods.deletePrompt")}{" "}
               <span className="font-semibold text-gray-900">
                 {selectedFood?.name}
               </span>
@@ -768,7 +783,7 @@ export function NutritionFoods() {
                 disabled={isSubmitting}
                 className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
               >
-                {isSubmitting ? "Deleting..." : "Delete"}
+                {isSubmitting ? t("common.loading") : t("common.delete")}
               </Button>
             </div>
           </div>

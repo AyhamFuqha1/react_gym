@@ -5,9 +5,11 @@ import { Logo } from "../../components/Logo";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
 import { forgotPassword, verifyOtp } from "../../services/auth";
+import { useTranslation } from "../../i18n";
 
 export function ForgotPassword() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState<"email" | "otp">("email");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +27,7 @@ export function ForgotPassword() {
       setStep("otp");
     } catch (error: any) {
       setError(
-        error?.response?.data?.message || "Failed to send OTP. Please try again."
+        error?.response?.data?.message || t("forgotPassword.sendOtpFailed")
       );
     } finally {
       setIsLoading(false);
@@ -44,7 +46,7 @@ export function ForgotPassword() {
       navigate("/reset-password");
     } catch (error: any) {
       setError(
-        error?.response?.data?.message || "OTP verification failed. Please try again."
+        error?.response?.data?.message || t("forgotPassword.verifyOtpFailed")
       );
     } finally {
       setIsLoading(false);
@@ -63,28 +65,27 @@ export function ForgotPassword() {
             to="/"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
           >
-            <ArrowLeft className="size-4" />
-            Back to login
+            <ArrowLeft className="size-4 rtl-flip" />
+            {t("forgotPassword.backToLogin")}
           </Link>
 
           {step === "email" ? (
             <>
               <h1 className="text-3xl font-bold text-foreground mb-3">
-                Forgot Password?
+                {t("forgotPassword.title")}
               </h1>
 
               <p className="text-muted-foreground mb-8">
-                Enter your email address and we’ll send you a one-time verification
-                code.
+                {t("forgotPassword.subtitle")}
               </p>
 
               <form onSubmit={handleSendOtp} className="space-y-6">
                 <div className="relative">
                   <Mail className="absolute left-4 top-[50px] size-5 text-muted-foreground" />
                   <Input
-                    label="Email Address"
+                    label={t("login.emailLabel")}
                     type="email"
-                    placeholder="you@gmail.com"
+                    placeholder={t("forgotPassword.emailPlaceholder")}
                     className="pl-12"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -99,17 +100,17 @@ export function ForgotPassword() {
                 )}
 
                 <Button type="submit" isLoading={isLoading}>
-                  Send OTP
+                  {t("forgotPassword.sendOtp")}
                 </Button>
 
                 <div className="pt-6 border-t border-border text-center">
                   <p className="text-sm text-muted-foreground">
-                    Remember your password?{" "}
+                    {t("forgotPassword.rememberPassword")}{" "}
                     <Link
                       to="/"
                       className="text-primary hover:text-accent transition-colors font-medium"
                     >
-                      Sign in
+                      {t("forgotPassword.signIn")}
                     </Link>
                   </p>
                 </div>
@@ -122,11 +123,11 @@ export function ForgotPassword() {
               </div>
 
               <h1 className="text-3xl font-bold text-foreground mb-4 text-center">
-                OTP Sent
+                {t("forgotPassword.otpSent")}
               </h1>
 
               <p className="text-muted-foreground mb-2 text-center">
-                We sent a verification code to
+                {t("forgotPassword.sentCodeTo")}
               </p>
               <p className="text-sm font-medium text-foreground mb-8 text-center">
                 {email}
@@ -136,9 +137,9 @@ export function ForgotPassword() {
                 <div className="relative">
                   <KeyRound className="absolute left-4 top-[50px] size-5 text-muted-foreground" />
                   <Input
-                    label="OTP Code"
+                    label={t("forgotPassword.otpLabel")}
                     type="text"
-                    placeholder="Enter the OTP code"
+                    placeholder={t("forgotPassword.otpPlaceholder")}
                     className="pl-12"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
@@ -153,7 +154,7 @@ export function ForgotPassword() {
                 )}
 
                 <Button type="submit" isLoading={isLoading}>
-                  Verify OTP
+                  {t("forgotPassword.verifyOtp")}
                 </Button>
 
                 <button
@@ -165,7 +166,7 @@ export function ForgotPassword() {
                   }}
                   className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Change email
+                  {t("forgotPassword.changeEmail")}
                 </button>
               </form>
             </>

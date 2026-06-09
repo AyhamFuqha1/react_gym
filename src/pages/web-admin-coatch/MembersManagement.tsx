@@ -38,10 +38,12 @@ import {
   formatDate,
   getInitials,
 } from "../../utils/members";
+import { useTranslation } from "../../i18n";
 
 export function MembersManagement() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const role = getRole();
   const isCoach = role === "coach";
@@ -90,7 +92,7 @@ export function MembersManagement() {
 
       setOpenCreateDialog(false);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to create member");
+      setError(err?.response?.data?.message || t("members.createFailed"));
     }
   };
 
@@ -103,12 +105,12 @@ export function MembersManagement() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-            Members Management
+            {isCoach ? t("members.coachTitle") : t("members.title")}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
             {isCoach
-              ? "View gym members and their progress"
-              : "Manage all gym members and their progress"}
+              ? t("members.coachSubtitle")
+              : t("members.subtitle")}
           </p>
         </div>
 
@@ -117,23 +119,25 @@ export function MembersManagement() {
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] hover:shadow-lg hover:shadow-[#0D7D6D]/25 text-white rounded-xl border-0 h-11 px-5">
                 <Plus className="mr-2" size={18} />
-                Add Member
+                {t("members.addMember")}
               </Button>
             </DialogTrigger>
 
             <DialogContent className="max-w-md rounded-2xl border-gray-100">
               <DialogHeader>
                 <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif]">
-                  Add New Member
+                  {t("members.addNewMember")}
                 </DialogTitle>
                 <DialogDescription>
-                  Create a new member account using the current backend API
+                  {t("members.createMember")}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 mt-2">
                 <div className="space-y-1.5">
-                  <Label className="text-gray-600 text-sm">Full Name</Label>
+                  <Label className="text-gray-600 text-sm">
+                    {t("members.memberName")}
+                  </Label>
                   <Input
                     placeholder="John Doe"
                     className="rounded-xl border-gray-200 bg-gray-50"
@@ -145,7 +149,7 @@ export function MembersManagement() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-gray-600 text-sm">Email</Label>
+                  <Label className="text-gray-600 text-sm">{t("common.email")}</Label>
                   <Input
                     type="email"
                     placeholder="john@example.com"
@@ -166,7 +170,9 @@ export function MembersManagement() {
                   }
                   className="w-full bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md hover:shadow-[#0D7D6D]/20"
                 >
-                  {createMemberMutation.isPending ? "Creating..." : "Create Member"}
+                  {createMemberMutation.isPending
+                    ? t("members.creating")
+                    : t("members.createMember")}
                 </Button>
               </div>
             </DialogContent>
@@ -183,19 +189,19 @@ export function MembersManagement() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {
-            label: "Total Members",
+            label: t("members.totalMembers"),
             value: stats.total,
             color: "text-[#0D7D6D]",
             bg: "bg-[#E6F4F1]",
           },
           {
-            label: "Active Members",
+            label: t("members.activeMembers"),
             value: stats.active,
             color: "text-emerald-600",
             bg: "bg-emerald-50",
           },
           {
-            label: "Inactive",
+            label: t("members.inactiveMembers"),
             value: stats.not_active,
             color: "text-gray-500",
             bg: "bg-gray-100",
@@ -220,7 +226,7 @@ export function MembersManagement() {
               size={18}
             />
             <Input
-              placeholder="Search members by name or email..."
+              placeholder={t("members.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 rounded-xl border-gray-200 bg-gray-50 focus:border-[#0D7D6D] h-11"
@@ -233,9 +239,9 @@ export function MembersManagement() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="appearance-none w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm text-gray-700 outline-none focus:border-[#0D7D6D]"
             >
-              <option value="all">All Members</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
+              <option value="all">{t("members.allMembers")}</option>
+              <option value="active">{t("members.active")}</option>
+              <option value="inactive">{t("members.inactive")}</option>
             </select>
             <ChevronDown
               size={16}
@@ -249,10 +255,10 @@ export function MembersManagement() {
               onChange={(e) => setSortBy(e.target.value)}
               className="appearance-none w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm text-gray-700 outline-none focus:border-[#0D7D6D]"
             >
-              <option value="name-asc">Sort: A-Z</option>
-              <option value="name-desc">Sort: Z-A</option>
-              <option value="id-desc">Sort: Newest ID</option>
-              <option value="id-asc">Sort: Oldest ID</option>
+              <option value="name-asc">{t("members.sortByNameAsc")}</option>
+              <option value="name-desc">{t("members.sortByNameDesc")}</option>
+              <option value="id-desc">{t("members.sortByNewest")}</option>
+              <option value="id-asc">{t("members.sortByOldest")}</option>
             </select>
             <ArrowUpDown
               size={16}
@@ -265,13 +271,13 @@ export function MembersManagement() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
           <h3 className="font-['Plus_Jakarta_Sans',sans-serif] text-3xl font-700 text-gray-900">
-            All Members ({filteredMembers.length})
+            {t("members.allMembers")} ({filteredMembers.length})
           </h3>
 
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Loader2 size={16} className="animate-spin" />
-              Loading...
+              {t("common.loading")}
             </div>
           ) : null}
         </div>
@@ -281,19 +287,19 @@ export function MembersManagement() {
             <TableHeader>
               <TableRow className="bg-gray-50/60">
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Member
+                  {t("members.member")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Plan
+                  {t("members.plan")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Status
+                  {t("common.status")}
                 </TableHead>
                 <TableHead className="font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  End Date
+                  {t("members.endDate")}
                 </TableHead>
                 <TableHead className="text-right font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                  Actions
+                  {t("common.actions")}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -302,7 +308,7 @@ export function MembersManagement() {
               {!loading && filteredMembers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-10 text-gray-400">
-                    No members found
+                    {t("members.noMembers")}
                   </TableCell>
                 </TableRow>
               ) : null}

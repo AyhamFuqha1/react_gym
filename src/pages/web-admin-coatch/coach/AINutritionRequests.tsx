@@ -43,6 +43,7 @@ import {
   createFoodFromSearchResult,
 } from "../../../utils/aiNutritionRequests";
 import { useUserGoals } from "../../../hooks/aiPlanRequests/queries/useUserGoals";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 const statusConfig = {
   pending: {
@@ -182,7 +183,34 @@ function formatRequestDate(value?: string | null) {
   });
 }
 
+function getRequestStatusLabel(
+  value: string,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<string, TranslationKey> = {
+    pending: "aiRequests.pendingReview",
+    done: "common.completed",
+    approved: "common.approved",
+    edited: "aiRequests.edited",
+  };
+
+  return t(labels[value] ?? "aiRequests.pendingReview");
+}
+
+function getRequestSourceLabel(
+  value: string,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<string, TranslationKey> = {
+    generated: "aiRequests.generated",
+    modification: "aiRequests.modification",
+  };
+
+  return t(labels[value] ?? "aiRequests.modification");
+}
+
 export default function AINutritionRequests() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRequest, setExpandedRequest] = useState<number | null>(null);
   const [nutritionRequests, setNutritionRequests] = useState<
@@ -247,11 +275,12 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
 
     return {
       ...request,
-      displayGoal: goalInfo?.goal ?? (toTitleCase(String(request.goal ?? "")) || "No goal"),
+      displayGoal:
+        goalInfo?.goal ?? (toTitleCase(String(request.goal ?? "")) || t("aiRequests.goal")),
       displayTargetWeight: goalInfo?.targetWeight ?? String(request.targetWeight ?? ""),
     };
   });
-}, [nutritionRequests, goalsMap]);
+}, [nutritionRequests, goalsMap, t]);
 
   const filteredRequests = useMemo(() => {
     return enrichedRequests.filter((request) => {
@@ -296,7 +325,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
     if (!canApprove) {
       setToast({
         type: "error",
-        message: "This request does not have a valid nutrition preview yet.",
+        message: t("aiRequests.noNutritionPreview"),
       });
       return;
     }
@@ -305,7 +334,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
       await approveMutation.mutateAsync(request);
       setToast({
         type: "success",
-        message: "Nutrition plan approved and saved successfully.",
+        message: t("aiRequests.nutritionApproved"),
       });
       await refreshAll();
       if (expandedRequest === requestId) {
@@ -314,7 +343,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
     } catch {
       setToast({
         type: "error",
-        message: "Failed to approve and save the nutrition plan.",
+        message: t("aiRequests.nutritionApproveFailed"),
       });
     }
   }
@@ -403,7 +432,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
   } catch {
     setToast({
       type: "error",
-      message: "Failed to load request details.",
+      message: t("aiRequests.detailsFailed"),
     });
   } finally {
     setLoadingDetailsId(null);
@@ -553,7 +582,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
     } catch {
       setToast({
         type: "error",
-        message: "Failed to search foods.",
+        message: t("aiRequests.searchFailed"),
       });
     } finally {
       setFoodSearchLoadingKey(null);
@@ -634,13 +663,13 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
       setEditingRequestId(null);
       setToast({
         type: "success",
-        message: "Request updated successfully.",
+        message: t("aiRequests.updated"),
       });
       await refetch();
     } catch {
       setToast({
         type: "error",
-        message: "Failed to update request.",
+        message: t("aiRequests.updateFailed"),
       });
     }
   }
@@ -650,7 +679,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
       await deleteMutation.mutateAsync(requestId);
       setToast({
         type: "success",
-        message: "Request deleted successfully.",
+        message: t("aiRequests.deleted"),
       });
       if (expandedRequest === requestId) {
         setExpandedRequest(null);
@@ -659,7 +688,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
     } catch {
       setToast({
         type: "error",
-        message: "Failed to delete request.",
+        message: t("aiRequests.deleteFailed"),
       });
     }
   }
@@ -687,11 +716,11 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                   <Apple className="w-6 h-6 text-white" />
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827] break-words">
-                  Nutrition Plan Requests
+                  {t("aiRequests.nutritionTitle")}
                 </h1>
               </div>
               <p className="text-gray-500 text-base lg:text-lg">
-                Review AI-generated and modified nutrition plans
+                {t("aiRequests.nutritionSubtitle")}
               </p>
             </div>
 
@@ -705,30 +734,30 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
               ) : (
                 <RefreshCw className="mr-2 w-4 h-4" />
               )}
-              Refresh
+              {t("common.refresh")}
             </Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <StatCard
-              title="Total Requests"
+              title={t("aiRequests.totalRequests")}
               value={totalRequests}
               icon={<Sparkles className="w-6 h-6 text-blue-600" />}
             />
             <StatCard
-              title="Pending Review"
+              title={t("aiRequests.pendingReview")}
               value={pendingReviewCount}
               valueClassName="text-amber-600"
               icon={<Clock className="w-6 h-6 text-amber-600" />}
             />
             <StatCard
-              title="Generated Plans"
+              title={t("aiRequests.generatedPlans")}
               value={generatedCount}
               valueClassName="text-[#111827]"
               icon={<GitBranch className="w-6 h-6 text-cyan-600" />}
             />
             <StatCard
-              title="Modification Requests"
+              title={t("aiRequests.modificationRequests")}
               value={modificationCount}
               valueClassName="text-[#111827]"
               icon={<RefreshCw className="w-6 h-6 text-violet-600" />}
@@ -738,7 +767,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Search by member name, request ID, plan reference, goal, or type..."
+              placeholder={t("aiRequests.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-14 bg-white border-gray-200 text-[#111827] placeholder:text-gray-400 rounded-xl text-base"
@@ -749,7 +778,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
         {isLoading ? (
           <div className="py-20 flex items-center justify-center text-gray-600">
             <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-            Loading nutrition requests...
+            {t("aiRequests.loadingNutrition")}
           </div>
         ) : (
           <div className="space-y-6">
@@ -792,7 +821,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                               className={`px-3 py-1 rounded-lg border ${status.bg} ${status.border}`}
                             >
                               <span className={`text-sm font-bold ${status.text}`}>
-                                {status.label}
+                                {getRequestStatusLabel(request.status, t)}
                               </span>
                             </div>
 
@@ -800,7 +829,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                               className={`px-3 py-1 rounded-lg border ${source.bg} ${source.border}`}
                             >
                               <span className={`text-sm font-bold ${source.text}`}>
-                                {source.label}
+                                {getRequestSourceLabel(request.source, t)}
                               </span>
                             </div>
                           </div>
@@ -808,26 +837,26 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <RefreshCw className="w-4 h-4" />
-                              Request ID:{" "}
+                              {t("aiRequests.requestId")}:{" "}
                               <strong className="text-[#111827]">{request.id}</strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Plan Ref:{" "}
+                              {t("aiRequests.planRef")}:{" "}
                               <strong className="text-[#111827]">
-                                {request.planId || "Generated request"}
+                                {request.planId || t("aiRequests.generatedRequest")}
                               </strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Version:{" "}
+                              {t("aiRequests.version")}:{" "}
                               <strong className="text-[#111827]">
                                 {request.version}
                               </strong>
                             </span>
 
                             <span className="flex items-center gap-1.5">
-                              Goal:{" "}
+                              {t("aiRequests.goal")}:{" "}
                               <strong className="text-[#111827]">
                                 {request.displayGoal}
                               </strong>
@@ -841,7 +870,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
 
                           {request.targetWeight ? (
                             <div className="mt-2 text-sm text-gray-500">
-                              Target Weight:{" "}
+                              {t("aiRequests.targetWeight")}:{" "}
                               <strong className="text-[#111827]">
                                 {request.displayTargetWeight}
                               </strong>
@@ -863,12 +892,12 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                         ) : isExpanded ? (
                           <>
                             <ChevronUp className="mr-2 w-4 h-4" />
-                            Collapse
+                            {t("aiRequests.collapse")}
                           </>
                         ) : (
                           <>
                             <ChevronDown className="mr-2 w-4 h-4" />
-                            View Details
+                            {t("aiRequests.viewDetails")}
                           </>
                         )}
                       </Button>
@@ -879,7 +908,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                     <div className="p-6 space-y-6 bg-[#FCFDFD]">
                       <SectionCard
                         icon={<Send className="w-5 h-5 text-amber-600" />}
-                        title="User Request"
+                        title={t("aiRequests.userRequest")}
                         titleClassName="text-[#111827]"
                       >
                         <p className="text-gray-600 leading-relaxed break-words">
@@ -890,35 +919,35 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <SectionCard
                           icon={<User className="w-5 h-5 text-[#0D7D6D]" />}
-                          title="Request Context"
+                          title={t("aiRequests.requestContext")}
                           titleClassName="text-[#111827]"
                         >
                           <div className="space-y-3 text-sm text-gray-700">
-                            <Row icon={<User className="w-4 h-4 mt-0.5 text-gray-500" />} label="User" value={detail?.user?.name ?? request.userName} />
-                            <Row icon={<Mail className="w-4 h-4 mt-0.5 text-gray-500" />} label="Email" value={detail?.user?.email ?? request.email ?? "N/A"} />
-                            <Row icon={<Target className="w-4 h-4 mt-0.5 text-gray-500" />} label="Goal" value={request.displayGoal || "N/A"} />
-                            <Row icon={<Target className="w-4 h-4 mt-0.5 text-gray-500" />} label="Target Weight" value={request.displayTargetWeight || "N/A"} />
-                            <Row icon={<Utensils className="w-4 h-4 mt-0.5 text-gray-500" />} label="Program" value={detail?.program_version?.name ?? (request.source === "generated" ? "Generated nutrition plan" : request.planId || "N/A")} />
-                            <Row icon={<Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />} label="Level" value={detail?.program_version?.level ?? "N/A"} />
+                            <Row icon={<User className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("aiRequests.user")} value={detail?.user?.name ?? request.userName} />
+                            <Row icon={<Mail className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("common.email")} value={detail?.user?.email ?? request.email ?? t("common.notAvailable")} />
+                            <Row icon={<Target className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("aiRequests.goal")} value={request.displayGoal || t("common.notAvailable")} />
+                            <Row icon={<Target className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("aiRequests.targetWeight")} value={request.displayTargetWeight || t("common.notAvailable")} />
+                            <Row icon={<Utensils className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("aiRequests.program")} value={detail?.program_version?.name ?? (request.source === "generated" ? t("aiRequests.generatedNutritionPlan") : request.planId || t("common.notAvailable"))} />
+                            <Row icon={<Sparkles className="w-4 h-4 mt-0.5 text-gray-500" />} label={t("aiRequests.level")} value={detail?.program_version?.level ?? t("common.notAvailable")} />
                           </div>
 
                           <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                            <p className="text-sm font-semibold text-[#111827] mb-2">Notes</p>
+                            <p className="text-sm font-semibold text-[#111827] mb-2">{t("aiRequests.notes")}</p>
                             <p className="text-sm text-gray-600 break-words">
-                              {request.notes || "No notes."}
+                              {request.notes || t("aiRequests.noNotes")}
                             </p>
                           </div>
                         </SectionCard>
 
                         <SectionCard
                           icon={<Apple className="w-5 h-5 text-amber-600" />}
-                          title="Nutrition Preferences"
+                          title={t("aiRequests.nutritionPreferences")}
                           titleClassName="text-[#111827]"
                         >
                           <div className="space-y-4 text-sm text-gray-700">
                             <div>
                               <p className="font-semibold text-[#111827] mb-2">
-                                Disliked Foods
+                                {t("aiRequests.dislikedFoods")}
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {request.dislikedFoods.length ? (
@@ -932,7 +961,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                   ))
                                 ) : (
                                   <span className="text-gray-500">
-                                    No disliked foods.
+                                    {t("aiRequests.noDislikedFoods")}
                                   </span>
                                 )}
                               </div>
@@ -943,7 +972,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
 
                       <SectionCard
                         icon={<Sparkles className="w-5 h-5 text-cyan-600" />}
-                        title="AI Changes Summary"
+                        title={t("aiRequests.aiChangesSummary")}
                         titleClassName="text-cyan-700"
                         wrapperClassName="bg-cyan-50 border-cyan-200"
                       >
@@ -961,7 +990,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                           </ul>
                         ) : (
                           <p className="text-sm text-gray-600">
-                            No summarized changes were returned.
+                            {t("aiRequests.noChanges")}
                           </p>
                         )}
                       </SectionCard>
@@ -971,15 +1000,15 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                           <div className="flex items-center gap-2">
                             <Apple className="w-5 h-5 text-[#0D7D6D]" />
                             <h4 className="text-lg font-['Plus_Jakarta_Sans',sans-serif] font-bold text-[#111827]">
-                              Updated Plan Preview
+                              {t("aiRequests.updatedPlanPreview")}
                             </h4>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                            <MetricCard title="Total Calories" value={planTotals.calories} />
-                            <MetricCard title="Total Protein" value={planTotals.protein} />
-                            <MetricCard title="Total Carbs" value={planTotals.carbs} />
-                            <MetricCard title="Total Fat" value={planTotals.fat} />
+                            <MetricCard title={t("aiRequests.totalCalories")} value={planTotals.calories} />
+                            <MetricCard title={t("aiRequests.totalProtein")} value={planTotals.protein} />
+                            <MetricCard title={t("aiRequests.totalCarbs")} value={planTotals.carbs} />
+                            <MetricCard title={t("aiRequests.totalFat")} value={planTotals.fat} />
                           </div>
 
                           {request.modifiedPlan.dailyMeals.map((meal, mealIndex) => {
@@ -1014,15 +1043,15 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                           {meal.meal}
                                         </h5>
                                       )}
-                                      <p className="text-sm text-gray-500">Meal section</p>
+                                      <p className="text-sm text-gray-500">{t("aiRequests.mealSection")}</p>
                                     </div>
                                   </div>
 
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 xl:min-w-[420px]">
-                                    <MiniMetric label="Calories" value={mealTotals.calories} />
-                                    <MiniMetric label="Protein" value={mealTotals.protein} />
-                                    <MiniMetric label="Carbs" value={mealTotals.carbs} />
-                                    <MiniMetric label="Fat" value={mealTotals.fat} />
+                                    <MiniMetric label={t("aiRequests.calories")} value={mealTotals.calories} />
+                                    <MiniMetric label={t("aiRequests.protein")} value={mealTotals.protein} />
+                                    <MiniMetric label={t("aiRequests.carbs")} value={mealTotals.carbs} />
+                                    <MiniMetric label={t("aiRequests.fat")} value={mealTotals.fat} />
                                   </div>
                                 </div>
 
@@ -1031,26 +1060,26 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                     <thead>
                                       <tr className="border-b border-gray-100">
                                         <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Food
+                                          {t("aiRequests.food")}
                                         </th>
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Qty
+                                          {t("aiRequests.qty")}
                                         </th>
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Calories
+                                          {t("aiRequests.calories")}
                                         </th>
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Protein
+                                          {t("aiRequests.protein")}
                                         </th>
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Carbs
+                                          {t("aiRequests.carbs")}
                                         </th>
                                         <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                          Fat
+                                          {t("aiRequests.fat")}
                                         </th>
                                         {isEditing ? (
                                           <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                                            Actions
+                                            {t("common.actions")}
                                           </th>
                                         ) : null}
                                       </tr>
@@ -1238,7 +1267,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                                   [mealKey]: e.target.value,
                                                 }))
                                               }
-                                              placeholder="Search foods to add..."
+                                              placeholder={t("aiRequests.searchFoodsPlaceholder")}
                                               className="bg-white border-gray-200 text-[#111827]"
                                             />
                                             <Button
@@ -1255,7 +1284,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                               ) : (
                                                 <>
                                                   <Search className="mr-2 w-4 h-4" />
-                                                  Search
+                                                  {t("common.search")}
                                                 </>
                                               )}
                                             </Button>
@@ -1273,7 +1302,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                                       {item.name}
                                                     </p>
                                                     <p className="text-sm text-gray-500 break-words">
-                                                      {item.category ?? "Food"} • Cal {item.calories}
+                                                      {item.category ?? t("aiRequests.food")} • Cal {item.calories}
                                                     </p>
                                                   </div>
 
@@ -1288,7 +1317,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                                     className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 sm:w-auto w-full"
                                                   >
                                                     <Plus className="mr-2 w-4 h-4" />
-                                                    Add
+                                                    {t("common.add")}
                                                   </Button>
                                                 </div>
                                               ))}
@@ -1305,7 +1334,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                                             className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700"
                                           >
                                             <Plus className="mr-2 w-4 h-4" />
-                                            Add Food Manually
+                                            {t("aiRequests.addFoodManually")}
                                           </Button>
                                         </>
                                       );
@@ -1319,19 +1348,19 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                       ) : (
                         <SectionCard
                           icon={<AlertCircle className="w-5 h-5 text-amber-600" />}
-                          title="Updated Plan Preview"
+                          title={t("aiRequests.updatedPlanPreview")}
                           titleClassName="text-amber-700"
                           wrapperClassName="bg-amber-50 border-amber-200"
                         >
                           <p className="text-sm text-amber-700">
-                            This request does not have a valid nutrition preview yet.
+                            {t("aiRequests.noNutritionPreview")}
                           </p>
                         </SectionCard>
                       )}
 
                       <SectionCard
                         icon={<Sparkles className="w-5 h-5 text-blue-600" />}
-                        title="AI Recommendations"
+                        title={t("aiRequests.aiRecommendations")}
                         titleClassName="text-blue-700"
                         wrapperClassName="bg-blue-50 border-blue-200"
                       >
@@ -1348,7 +1377,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                           </div>
                         ) : (
                           <p className="text-sm text-gray-600">
-                            No recommendations returned.
+                            {t("aiRequests.noRecommendations")}
                           </p>
                         )}
                       </SectionCard>
@@ -1366,7 +1395,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                               ) : (
                                 <Save className="mr-2 w-5 h-5" />
                               )}
-                              Save Changes
+                              {t("aiRequests.saveChanges")}
                             </Button>
                           ) : (
                             <Button
@@ -1374,7 +1403,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                               className="flex-1 h-14 bg-amber-500 hover:bg-amber-600 text-white text-base font-semibold"
                             >
                               <Edit2 className="mr-2 w-5 h-5" />
-                              Edit Request
+                              {t("aiRequests.editRequest")}
                             </Button>
                           )}
 
@@ -1388,7 +1417,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                             ) : (
                               <Check className="mr-2 w-5 h-5" />
                             )}
-                            Approve & Save Plan
+                            {t("aiRequests.approveSavePlan")}
                           </Button>
 
                           <Button
@@ -1402,7 +1431,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                             ) : (
                               <Trash2 className="mr-2 w-5 h-5" />
                             )}
-                            Delete
+                            {t("common.delete")}
                           </Button>
 
                           <Button
@@ -1414,7 +1443,7 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
                             className="h-14 px-6 border-gray-200 text-gray-600 hover:bg-gray-50 text-base font-semibold"
                           >
                             <X className="mr-2 w-5 h-5" />
-                            Close
+                            {t("common.close")}
                           </Button>
                         </div>
                       </div>
@@ -1427,8 +1456,8 @@ const enrichedRequests = useMemo<EnrichedNutritionModificationRequestItem[]>(() 
             {filteredRequests.length === 0 ? (
               <EmptyState
                 icon={<RefreshCw className="w-10 h-10 text-gray-400" />}
-                title="No nutrition plan requests found"
-                description="There are no generated or modification nutrition requests right now."
+                title={t("aiRequests.noNutritionTitle")}
+                description={t("aiRequests.noNutritionDescription")}
               />
             ) : null}
           </div>

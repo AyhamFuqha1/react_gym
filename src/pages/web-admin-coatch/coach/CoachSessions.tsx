@@ -53,6 +53,7 @@ import { useCreateCoachSession } from "../../../hooks/coachSessions/mutations/us
 import { useUpdateCoachSession } from "../../../hooks/coachSessions/mutations/useUpdateCoachSession";
 import { useCancelCoachSession } from "../../../hooks/coachSessions/mutations/useCancelCoachSession";
 import { useDeleteCoachSession } from "../../../hooks/coachSessions/mutations/useDeleteCoachSession";
+import { useTranslation, type TranslationKey } from "../../../i18n";
 
 type SessionDisplayStatus = "available" | "full" | "cancelled";
 type SessionFormStatus = "available" | "cancelled";
@@ -107,6 +108,16 @@ const gridDays: GridDay[] = [
   { label: "Friday", shortLabel: "Fri", value: 5 },
   { label: "Saturday", shortLabel: "Sat", value: 6 },
 ];
+
+const weekdayTranslationKeys: Record<number, TranslationKey> = {
+  0: "sessions.weekday.sunday",
+  1: "sessions.weekday.monday",
+  2: "sessions.weekday.tuesday",
+  3: "sessions.weekday.wednesday",
+  4: "sessions.weekday.thursday",
+  5: "sessions.weekday.friday",
+  6: "sessions.weekday.saturday",
+};
 
 const timeSlotHours = Array.from({ length: 16 }, (_, index) => index + 6);
 const SCHEDULE_SLOT_HEIGHT = 104;
@@ -258,6 +269,23 @@ function normalizeStatus(value?: string | null): SessionDisplayStatus {
 
 function getStatusMeta(value?: string | null): StatusMeta {
   return statusMeta[normalizeStatus(value)];
+}
+
+function getSessionStatusLabel(
+  value: SessionDisplayStatus,
+  t: (key: TranslationKey) => string
+) {
+  const labels: Record<SessionDisplayStatus, TranslationKey> = {
+    available: "common.available",
+    full: "common.full",
+    cancelled: "common.cancelled",
+  };
+
+  return t(labels[value]);
+}
+
+function getWeekdayLabel(dayValue: number, t: (key: TranslationKey) => string) {
+  return t(weekdayTranslationKeys[dayValue] ?? "sessions.weekday.sunday");
 }
 
 function parseDateKey(value: string) {
@@ -674,27 +702,32 @@ function buildSessionPayload(
   };
 }
 
-function validateForm(form: SessionFormState, requireSessionDate: boolean) {
+function validateForm(
+  form: SessionFormState,
+  requireSessionDate: boolean,
+  t: (key: TranslationKey) => string
+) {
   if (requireSessionDate && !form.session_date) {
-    return "Session date is required.";
+    return t("sessions.validationDateRequired");
   }
 
   if (!form.start_time || !form.end_time) {
-    return "Start time and end time are required.";
+    return t("sessions.validationTimesRequired");
   }
 
   if (form.start_time >= form.end_time) {
-    return "End time must be after start time.";
+    return t("sessions.validationEndAfterStart");
   }
 
   if (!Number.isFinite(Number(form.capacity)) || Number(form.capacity) < 1) {
-    return "Capacity must be at least 1.";
+    return t("sessions.validationCapacity");
   }
 
   return "";
 }
 
 export function CoachSessions() {
+  const { t } = useTranslation();
   const coachUserId = useMemo(() => {
     const userId = getUserId();
     return Number.isFinite(userId) ? userId : null;
@@ -847,7 +880,7 @@ export function CoachSessions() {
   }
 
   async function handleCreateSession() {
-    const validationMessage = validateForm(form, true);
+    const validationMessage = validateForm(form, true, t);
 
     if (validationMessage) {
       setFormError(validationMessage);
@@ -857,19 +890,19 @@ export function CoachSessions() {
     const sessionDate = parseSessionDate(form.session_date);
 
     if (!sessionDate || isPastSlot(sessionDate, form.start_time)) {
-      setFormError("Cannot create a session in the past.");
+      setFormError(t("sessions.validationPast"));
       return;
     }
 
     if (coachUserId === null) {
-      setFormError("Coach user ID not found. Please login again.");
+      setFormError(t("sessions.userIdMissingDescription"));
       return;
     }
 
     try {
       setFormError("");
       await createMutation.mutateAsync(buildSessionPayload(form, coachUserId));
-      setToast({ type: "success", message: "Session created successfully." });
+      setToast({ type: "success", message: t("sessions.created") });
       closeCreateDialog();
     } catch (error) {
       console.error("Failed to create session:", error);
@@ -880,7 +913,7 @@ export function CoachSessions() {
   async function handleUpdateSession() {
     if (!editSession) return;
 
-    const validationMessage = validateForm(form, false);
+    const validationMessage = validateForm(form, false, t);
 
     if (validationMessage) {
       setFormError(validationMessage);
@@ -888,7 +921,7 @@ export function CoachSessions() {
     }
 
     if (coachUserId === null) {
-      setFormError("Coach user ID not found. Please login again.");
+      setFormError(t("sessions.userIdMissingDescription"));
       return;
     }
 
@@ -903,7 +936,7 @@ export function CoachSessions() {
         sessionId: editSession.id,
         payload,
       });
-      setToast({ type: "success", message: "Session updated successfully." });
+      setToast({ type: "success", message: t("sessions.updated") });
       closeEditDialog();
     } catch (error) {
       console.error("Failed to update session:", error);
@@ -916,7 +949,7 @@ export function CoachSessions() {
 
     try {
       await cancelMutation.mutateAsync(sessionToCancel.id);
-      setToast({ type: "success", message: "Session cancelled successfully." });
+      setToast({ type: "success", message: t("sessions.cancelled") });
       setSessionToCancel(null);
       if (selectedSession?.id === sessionToCancel.id) {
         setDetailsOpen(false);
@@ -933,7 +966,7 @@ export function CoachSessions() {
 
     try {
       await deleteMutation.mutateAsync(sessionToDelete.id);
-      setToast({ type: "success", message: "Session deleted successfully." });
+      setToast({ type: "success", message: t("sessions.deleted") });
       setSessionToDelete(null);
       if (selectedSession?.id === sessionToDelete.id) {
         setDetailsOpen(false);
@@ -954,8 +987,8 @@ export function CoachSessions() {
         <Header onCreate={openCreateDialog} createDisabled />
         <StateCard
           icon={<AlertCircle className="w-5 h-5 text-rose-600" />}
-          title="Coach user ID not found"
-          description="Coach user ID not found. Please login again."
+          title={t("sessions.userIdMissingTitle")}
+          description={t("sessions.userIdMissingDescription")}
         />
       </div>
     );
@@ -980,13 +1013,13 @@ export function CoachSessions() {
       {sessionsQuery.isLoading ? (
         <StateCard
           icon={<Loader2 className="w-5 h-5 animate-spin text-[#0D7D6D]" />}
-          title="Loading coach sessions..."
-          description="Fetching your current coaching availability."
+          title={t("sessions.loading")}
+          description={t("sessions.loadingDescription")}
         />
       ) : sessionsQuery.error ? (
         <StateCard
           icon={<AlertCircle className="w-5 h-5 text-rose-600" />}
-          title="Unable to load coach sessions"
+          title={t("sessions.unableToLoad")}
           description={getErrorMessage(sessionsQuery.error)}
           action={
             <Button
@@ -994,7 +1027,7 @@ export function CoachSessions() {
               onClick={() => void sessionsQuery.refetch()}
               className="rounded-xl bg-[#0D7D6D] hover:bg-[#0b6b5d] text-white"
             >
-              Try Again
+              {t("common.tryAgain")}
             </Button>
           }
         />
@@ -1002,31 +1035,31 @@ export function CoachSessions() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatCard
-              title="Total Sessions"
+              title={t("sessions.totalSessions")}
               value={stats.total}
               icon={<CalendarDays className="w-6 h-6 text-blue-600" />}
               iconClassName="bg-blue-50"
             />
             <StatCard
-              title="Available"
+              title={t("common.available")}
               value={stats.available}
               icon={<CheckCircle className="w-6 h-6 text-emerald-600" />}
               iconClassName="bg-emerald-50"
             />
             <StatCard
-              title="Full"
+              title={t("common.full")}
               value={stats.full}
               icon={<Users className="w-6 h-6 text-amber-600" />}
               iconClassName="bg-amber-50"
             />
             <StatCard
-              title="Cancelled"
+              title={t("common.cancelled")}
               value={stats.cancelled}
               icon={<XCircle className="w-6 h-6 text-rose-600" />}
               iconClassName="bg-rose-50"
             />
             <StatCard
-              title="Total Bookings"
+              title={t("sessions.totalBookings")}
               value={stats.bookings}
               icon={<UserRound className="w-6 h-6 text-[#0D7D6D]" />}
               iconClassName="bg-[#E6F4F1]"
@@ -1067,10 +1100,10 @@ export function CoachSessions() {
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Create Session
+              {t("sessions.createSession")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Add a new coaching session to your availability.
+              {t("sessions.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1078,8 +1111,8 @@ export function CoachSessions() {
             form={form}
             setForm={setForm}
             formError={formError}
-            submitLabel="Create Session"
-            submittingLabel="Creating..."
+            submitLabel={t("sessions.createSession")}
+            submittingLabel={t("common.creating")}
             isSubmitting={createMutation.isPending}
             onSubmit={handleCreateSession}
             onCancel={closeCreateDialog}
@@ -1100,10 +1133,10 @@ export function CoachSessions() {
         <DialogContent className="sm:max-w-[560px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Edit Session
+              {t("sessions.editSession")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Update your session details and availability.
+              {t("sessions.editDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1111,8 +1144,8 @@ export function CoachSessions() {
             form={form}
             setForm={setForm}
             formError={formError}
-            submitLabel="Save Changes"
-            submittingLabel="Saving..."
+            submitLabel={t("aiRequests.saveChanges")}
+            submittingLabel={t("common.saving")}
             isSubmitting={updateMutation.isPending}
             onSubmit={handleUpdateSession}
             onCancel={closeEditDialog}
@@ -1132,17 +1165,17 @@ export function CoachSessions() {
         <DialogContent className="w-[95vw] sm:max-w-[880px] rounded-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Session Details
+              {t("sessions.detailsTitle")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Review session information and member bookings.
+              {t("sessions.detailsDescription")}
             </DialogDescription>
           </DialogHeader>
 
           {detailsLoading ? (
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Loading session details...
+              {t("sessions.loadingDetails")}
             </div>
           ) : null}
 
@@ -1161,7 +1194,7 @@ export function CoachSessions() {
                   className="flex-1 rounded-xl border-amber-200 text-amber-600 hover:bg-amber-50"
                 >
                   <Pencil className="w-4 h-4" />
-                  Edit
+                  {t("common.edit")}
                 </Button>
 
                 {!isSessionCancelled(selectedSession) ? (
@@ -1175,7 +1208,7 @@ export function CoachSessions() {
                     className="flex-1 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
                   >
                     <XCircle className="w-4 h-4" />
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                 ) : null}
 
@@ -1189,13 +1222,13 @@ export function CoachSessions() {
                   className="flex-1 rounded-xl border-rose-200 text-rose-700 hover:bg-rose-50"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  {t("common.delete")}
                 </Button>
               </div>
             </>
           ) : (
             <div className="py-12 text-center text-gray-500">
-              Session details are not available.
+              {t("sessions.detailsUnavailable")}
             </div>
           )}
         </DialogContent>
@@ -1211,10 +1244,10 @@ export function CoachSessions() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Cancel Session
+              {t("sessions.cancelSession")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              This will mark the selected session as cancelled without deleting it.
+              {t("sessions.cancelDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1238,7 +1271,7 @@ export function CoachSessions() {
               disabled={cancelMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Keep Session
+              {t("sessions.keepSession")}
             </Button>
 
             <Button
@@ -1250,10 +1283,10 @@ export function CoachSessions() {
               {cancelMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Cancelling...
+                  {t("sessions.cancelling")}
                 </>
               ) : (
-                "Cancel Session"
+                t("sessions.cancelSession")
               )}
             </Button>
           </div>
@@ -1270,11 +1303,10 @@ export function CoachSessions() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-['Plus_Jakarta_Sans',sans-serif] text-xl text-gray-900">
-              Delete Session
+              {t("sessions.deleteSession")}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              This permanently removes the selected session from all session
-              lists.
+              {t("sessions.deleteDescription")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1298,7 +1330,7 @@ export function CoachSessions() {
               disabled={deleteMutation.isPending}
               className="flex-1 rounded-xl"
             >
-              Keep Session
+              {t("sessions.keepSession")}
             </Button>
 
             <Button
@@ -1310,10 +1342,10 @@ export function CoachSessions() {
               {deleteMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting...
+                  {t("common.deleting")}
                 </>
               ) : (
-                "Delete Session"
+                t("sessions.deleteSession")
               )}
             </Button>
           </div>
@@ -1330,14 +1362,16 @@ function Header({
   onCreate: () => void;
   createDisabled?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 className="text-2xl font-['Plus_Jakarta_Sans',sans-serif] font-700 text-gray-900">
-          Coach Scheduling
+          {t("sessions.title")}
         </h1>
         <p className="text-gray-400 text-sm mt-1">
-          Manage coach availability and create bookable sessions
+          {t("sessions.subtitle")}
         </p>
       </div>
 
@@ -1348,7 +1382,7 @@ function Header({
         className="bg-gradient-to-r from-[#0D7D6D] to-[#14B8A6] text-white rounded-xl border-0 hover:shadow-md"
       >
         <Plus className="w-4 h-4" />
-        Create Session
+        {t("sessions.createSession")}
       </Button>
     </div>
   );
@@ -1373,15 +1407,17 @@ function ScheduleGrid({
   onEmptySlotClick: (dayValue: number, hour: number) => void;
   onSessionClick: (session: CoachSession) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-            Weekly Schedule
+            {t("sessions.weeklySchedule")}
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            Click an empty slot to create a session, or click a block to manage it.
+            {t("sessions.weeklyDescription")}
           </p>
           <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-600">
             <CalendarDays className="w-4 h-4 text-[#0D7D6D]" />
@@ -1396,10 +1432,10 @@ function ScheduleGrid({
               variant="outline"
               size="icon"
               onClick={onPreviousWeek}
-              aria-label="Previous week"
+              aria-label={t("sessions.weeklySchedule")}
               className="h-8 w-8 rounded-lg border-gray-200 text-gray-600"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 rtl-flip" />
             </Button>
             <Button
               type="button"
@@ -1409,17 +1445,17 @@ function ScheduleGrid({
               disabled={isViewingCurrentWeek}
               className="h-8 rounded-lg border-gray-200 text-gray-600 disabled:bg-gray-50"
             >
-              Today
+              {t("sessions.today")}
             </Button>
             <Button
               type="button"
               variant="outline"
               size="icon"
               onClick={onNextWeek}
-              aria-label="Next week"
+              aria-label={t("sessions.weeklySchedule")}
               className="h-8 w-8 rounded-lg border-gray-200 text-gray-600"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 rtl-flip" />
             </Button>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
@@ -1438,7 +1474,7 @@ function ScheduleGrid({
             }}
           >
             <div className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Time
+              {t("sessions.time")}
             </div>
 
             {gridDays.map((day) => {
@@ -1450,7 +1486,7 @@ function ScheduleGrid({
                   className="bg-gray-50 border-r border-b border-gray-200 px-3 py-3 text-center"
                 >
                   <p className="text-sm font-semibold text-gray-900">
-                    {day.label}
+                    {getWeekdayLabel(day.value, t)}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {formatGridDate(date)}
@@ -1508,6 +1544,7 @@ function ScheduleDayColumn({
   onEmptySlotClick: (dayValue: number, hour: number) => void;
   onSessionClick: (session: CoachSession) => void;
 }) {
+  const { t } = useTranslation();
   const sessionsForDay = sessions
     .filter(
       (session) =>
@@ -1555,7 +1592,7 @@ function ScheduleDayColumn({
             {canCreateInSlot ? (
               <div className="h-full rounded-xl border border-dashed border-transparent flex items-center justify-center text-xs text-transparent hover:text-[#0D7D6D] hover:border-[#0D7D6D]/20">
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Add
+                {t("common.add")}
               </div>
             ) : (
               <div className="h-full rounded-xl border border-transparent" />
@@ -1596,10 +1633,12 @@ function SessionBlock({
   className?: string;
   style?: CSSProperties;
 }) {
+  const { t } = useTranslation();
   const bookedCount = getBookedCount(session);
   const capacity = getCapacity(session);
   const duration = getDurationMinutes(session);
-  const meta = getStatusMeta(getSessionDisplayStatus(session));
+  const status = getSessionDisplayStatus(session);
+  const meta = getStatusMeta(status);
 
   return (
     <button
@@ -1625,15 +1664,15 @@ function SessionBlock({
 
       <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] font-semibold">
         <span className="rounded-full bg-white/70 px-2 py-0.5">
-          {bookedCount}/{capacity} spots
+          {bookedCount}/{capacity} {t("sessions.spots")}
         </span>
         {duration !== null ? (
           <span className="rounded-full bg-white/70 px-2 py-0.5">
-            {duration} min
+          {duration} {t("sessions.minutes")}
           </span>
         ) : null}
         <span className="rounded-full bg-white/70 px-2 py-0.5">
-          {meta.label}
+          {getSessionStatusLabel(status, t)}
         </span>
       </div>
     </button>
@@ -1647,13 +1686,15 @@ function UpcomingSessions({
   sessions: CoachSession[];
   onSessionClick: (session: CoachSession) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900">
-        Upcoming Sessions
+        {t("sessions.upcomingSessions")}
       </h3>
       <p className="text-xs text-gray-400 mt-1 mb-4">
-        Future sessions after the selected Sunday-Saturday week.
+        {t("sessions.upcomingDescription")}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -1676,10 +1717,13 @@ function UpcomingSessionCard({
   session: CoachSession;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const bookedCount = getBookedCount(session);
   const capacity = getCapacity(session);
-  const meta = getStatusMeta(getSessionDisplayStatus(session));
+  const status = getSessionDisplayStatus(session);
+  const meta = getStatusMeta(status);
   const StatusIcon = meta.icon;
+  const dayValue = getSessionDayValue(session);
 
   return (
     <button
@@ -1694,7 +1738,7 @@ function UpcomingSessionCard({
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {formatDate(session.session_date)} -{" "}
-            {formatDayOfWeek(session) || "-"}
+            {dayValue !== null ? getWeekdayLabel(dayValue, t) : formatDayOfWeek(session) || "-"}
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {formatTime(session.start_time)} - {formatTime(session.end_time)}
@@ -1708,15 +1752,15 @@ function UpcomingSessionCard({
 
       <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-semibold">
         <span className="rounded-full bg-white px-2 py-0.5 text-gray-700 border border-gray-100">
-          {bookedCount}/{capacity} spots
+          {bookedCount}/{capacity} {t("sessions.spots")}
         </span>
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${meta.className}`}
         >
           <StatusIcon className="w-3 h-3" />
-          {meta.label}
+          {getSessionStatusLabel(status, t)}
         </span>
-        <span className="ml-auto text-[#0D7D6D]">Manage</span>
+        <span className="ml-auto text-[#0D7D6D]">{t("sessions.manage")}</span>
       </div>
     </button>
   );
@@ -1743,6 +1787,8 @@ function SessionForm({
   onCancel: () => void;
   requireDate?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-4 mt-2">
       {formError ? (
@@ -1754,7 +1800,8 @@ function SessionForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-gray-600 text-sm">
-            Session Date{requireDate ? " *" : ""}
+            {t("sessions.sessionDate")}
+            {requireDate ? " *" : ""}
           </Label>
           <Input
             type="date"
@@ -1773,7 +1820,7 @@ function SessionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-gray-600 text-sm">Day of Week</Label>
+          <Label className="text-gray-600 text-sm">{t("sessions.dayOfWeek")}</Label>
           <Select
             value={form.day_of_week}
             disabled={Boolean(form.session_date)}
@@ -1782,13 +1829,13 @@ function SessionForm({
             }
           >
             <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50">
-              <SelectValue placeholder="Optional day" />
+              <SelectValue placeholder={t("sessions.optionalDay")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No Day</SelectItem>
+              <SelectItem value="none">{t("sessions.noDay")}</SelectItem>
               {gridDays.map((day) => (
                 <SelectItem key={day.value} value={String(day.value)}>
-                  {day.label}
+                  {getWeekdayLabel(day.value, t)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1798,7 +1845,7 @@ function SessionForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-gray-600 text-sm">Start Time</Label>
+          <Label className="text-gray-600 text-sm">{t("sessions.startTime")}</Label>
           <Input
             type="time"
             value={form.start_time}
@@ -1813,7 +1860,7 @@ function SessionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-gray-600 text-sm">End Time</Label>
+          <Label className="text-gray-600 text-sm">{t("sessions.endTime")}</Label>
           <Input
             type="time"
             value={form.end_time}
@@ -1830,7 +1877,7 @@ function SessionForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-gray-600 text-sm">Capacity</Label>
+          <Label className="text-gray-600 text-sm">{t("sessions.capacity")}</Label>
           <Input
             type="number"
             min={1}
@@ -1846,7 +1893,7 @@ function SessionForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-gray-600 text-sm">Status</Label>
+          <Label className="text-gray-600 text-sm">{t("sessions.status")}</Label>
           <Select
             value={form.status}
             onValueChange={(value) =>
@@ -1860,8 +1907,8 @@ function SessionForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="available">Available</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="available">{t("common.available")}</SelectItem>
+              <SelectItem value="cancelled">{t("common.cancelled")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1870,10 +1917,10 @@ function SessionForm({
       <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
         <span>
           <span className="block text-sm font-semibold text-gray-900">
-            Recurring Session
+            {t("sessions.recurringSession")}
           </span>
           <span className="block text-xs text-gray-500 mt-0.5">
-            Mark this session as recurring availability.
+            {t("sessions.recurringDescription")}
           </span>
         </span>
         <input
@@ -1897,7 +1944,7 @@ function SessionForm({
           disabled={isSubmitting}
           className="flex-1 rounded-xl"
         >
-          Cancel
+          {t("common.cancel")}
         </Button>
 
         <Button
@@ -1921,10 +1968,13 @@ function SessionForm({
 }
 
 function SessionDetailsContent({ session }: { session: CoachSession }) {
+  const { t } = useTranslation();
   const bookings = Array.isArray(session.bookings) ? session.bookings : [];
-  const meta = getStatusMeta(getSessionDisplayStatus(session));
+  const status = getSessionDisplayStatus(session);
+  const meta = getStatusMeta(status);
   const StatusIcon = meta.icon;
   const duration = getDurationMinutes(session);
+  const dayValue = getSessionDayValue(session);
 
   return (
     <div className="space-y-5">
@@ -1933,43 +1983,46 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${meta.className}`}
         >
           <StatusIcon className="w-3.5 h-3.5" />
-          {meta.label}
+          {getSessionStatusLabel(status, t)}
         </span>
 
         {isRecurring(session.is_recurring) ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200">
             <Repeat2 className="w-3.5 h-3.5" />
-            Recurring
+            {t("sessions.recurring")}
           </span>
         ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        <DetailTile label="Date" value={formatDate(session.session_date)} />
-        <DetailTile label="Day" value={formatDayOfWeek(session) || "-"} />
+        <DetailTile label={t("sessions.date")} value={formatDate(session.session_date)} />
         <DetailTile
-          label="Time"
+          label={t("sessions.day")}
+          value={dayValue !== null ? getWeekdayLabel(dayValue, t) : formatDayOfWeek(session) || "-"}
+        />
+        <DetailTile
+          label={t("sessions.time")}
           value={`${formatTime(session.start_time)} - ${formatTime(
             session.end_time
           )}`}
         />
         <DetailTile
-          label="Capacity"
-          value={`${getBookedCount(session)}/${getCapacity(session)} booked`}
+          label={t("sessions.capacity")}
+          value={`${getBookedCount(session)}/${getCapacity(session)} ${t("sessions.booked")}`}
         />
         <DetailTile
-          label="Duration"
-          value={duration !== null ? `${duration} minutes` : "-"}
+          label={t("sessions.duration")}
+          value={duration !== null ? `${duration} ${t("sessions.minutes")}` : "-"}
         />
       </div>
 
       <div className="rounded-2xl border border-gray-100 overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-['Plus_Jakarta_Sans',sans-serif] font-600 text-gray-900 text-sm">
-            Bookings
+            {t("sessions.bookings")}
           </h3>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600">
-            {bookings.length} users
+            {bookings.length} {t("sessions.users")}
           </span>
         </div>
 
@@ -1978,9 +2031,9 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
             <table className="w-full">
               <thead className="bg-white border-b border-gray-100">
                 <tr>
-                  <TableHeaderCell>User</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Booked At</TableHeaderCell>
+                  <TableHeaderCell>{t("aiRequests.user")}</TableHeaderCell>
+                  <TableHeaderCell>{t("sessions.status")}</TableHeaderCell>
+                  <TableHeaderCell>{t("sessions.bookedAt")}</TableHeaderCell>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1994,7 +2047,7 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
                       <td className="py-3 px-6">
                         <p className="font-medium text-gray-900">{userName}</p>
                         <p className="text-xs text-gray-400">
-                          {userEmail || "No email available"}
+                          {userEmail || t("sessions.noEmailAvailable")}
                         </p>
                       </td>
                       <td className="py-3 px-6">
@@ -2017,7 +2070,7 @@ function SessionDetailsContent({ session }: { session: CoachSession }) {
           </div>
         ) : (
           <div className="py-10 text-center text-sm text-gray-500">
-            No bookings for this session.
+            {t("sessions.noBookings")}
           </div>
         )}
       </div>
