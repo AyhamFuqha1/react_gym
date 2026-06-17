@@ -326,8 +326,7 @@ This dashboard is part of the FitMind graduation project. It represents the staf
 
 ## Authors
 
-FitMind graduation project team.
+mahmoud yaseen
+ayham fuqha
 
-## License
 
-No license file is currently included. Add a license before distributing or publishing this project publicly.
