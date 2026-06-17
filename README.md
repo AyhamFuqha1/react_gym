@@ -326,7 +326,7 @@ This dashboard is part of the FitMind graduation project. It represents the staf
 
 ## Authors
 
-mahmoud yaseen
-ayham fuqha
+- mahmoud yaseen
+- ayham fuqha
 
 
